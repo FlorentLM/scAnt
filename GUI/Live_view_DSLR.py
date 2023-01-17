@@ -1,3 +1,5 @@
+# TODO - add support for gphoto on Linux and macOS
+
 from os.path import join, sep
 import subprocess
 from pathlib import Path

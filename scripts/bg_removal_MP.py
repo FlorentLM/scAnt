@@ -8,11 +8,9 @@ import time
 import sys
 from imutils import paths
 from skimage import measure
+from pathlib import Path
 
 import platform
-
-used_platform = platform.system()
-
 
 class AlphaExtractionThread(threading.Thread):
     def __init__(self, threadID, name, q):
@@ -29,10 +27,7 @@ class AlphaExtractionThread(threading.Thread):
 
 def getThreads():
     """ Returns the number of available threads on a posix/win based system """
-    if sys.platform == 'win32':
-        return int(os.environ['NUMBER_OF_PROCESSORS'])
-    else:
-        return int(os.popen('grep -c cores /proc/cpuinfo').read())
+    return os.cpu_count()
 
 
 def createThreadList(num_threads):
@@ -227,13 +222,12 @@ def createAlphaMask(threadName, q, edgeDetector, create_cutout=False):
             # Add the masked foreground and background.
             cutout = cv2.add(foreground, background)
 
+            contour_filepath = Path(data[:-4] + '_contour.png')
+
             cv2.imwrite(data[:-4] + '_contour.png', cutout)
             cutout = cv2.imread(data[:-4] + '_contour.png')
 
-            if used_platform == "Linux":
-                os.system("rm " + data[:-4] + '_contour.png')
-            else:
-                os.system("del " + data[:-4] + '_contour.png')
+            contour_filepath.unlink()
 
             # cutout = cv2.imread(source, 1)  # TEMPORARY
 

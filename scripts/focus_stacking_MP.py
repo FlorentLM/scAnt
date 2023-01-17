@@ -6,7 +6,6 @@
 $ python Focus_stacking_MP.py --images "images_folder_path" --threshold "float"
 """
 
-from imutils import paths
 import argparse
 import cv2
 import os
@@ -14,10 +13,9 @@ from PIL import Image, ImageEnhance
 import queue
 import threading
 import time
-import sys
-import numpy as np
 from pathlib import Path
 import platform
+import shutil
 
 
 class myThread(threading.Thread):
@@ -52,18 +50,15 @@ def process_data(threadName, q):
         if not workQueue.empty():
             data = q.get()
             queueLock.release()
-            print("%s processing %s" % (threadName, data))
-            checkFocus(args["images"].joinpath(data))
+            print(f"{threadName} processing {data}")
+            checkFocus((input_images_folder / data))
         else:
             queueLock.release()
 
 
 def getThreads():
     """ Returns the number of available threads on a posix/win based system """
-    if sys.platform == 'win32':
-        return int(os.environ['NUMBER_OF_PROCESSORS'])
-    else:
-        return int(os.popen('grep -c cores /proc/cpuinfo').read())
+    return os.cpu_count()
 
 
 def createThreadList(num_threads):
@@ -101,7 +96,7 @@ def variance_of_laplacian(image):
 
 
 def checkFocus(image_path):
-    image = cv2.imread(str(image_path))
+    image = cv2.imread(image_path.as_posix())
 
     # original window size (due to input image)
     # = 2448 x 2048 -> time to size it down!
@@ -120,17 +115,17 @@ def checkFocus(image_path):
     if fm < args["threshold"]:
         text = "BLURRY"
         color_text = (0, 0, 255)
-        rejected_images.append(image_path.name)
+        rejected_images.append(image_path)
     else:
         text = "NOT Blurry"
         color_text = (255, 0, 0)
-        usable_images.append(image_path.name)
+        usable_images.append(image_path)
 
-    print(image_path.name, "is", text)
+    print(image_path.stem, "is", text)
 
     if args["display"]:
         # show the image
-        cv2.putText(resized, "{}: {:.2f}".format(text, fm), (10, 30),
+        cv2.putText(resized, f"{text}: {fm:.2f}", (10, 30),
                     cv2.FONT_HERSHEY_DUPLEX, 0.8, color_text, 3)
         cv2.imshow("Image", resized)
 
@@ -144,82 +139,65 @@ def process_stack(threadName, q):
             data = q.get()
             queueLock.release()
 
-            stack_name = data.split(" ")[1]
-            stack_name = Path(stack_name).name[:-15]
+            first_img_name = data[0].stem
+            current_stack = first_img_name.split('step')[0]
 
-            temp_output_folder = output_folder.joinpath(stack_name)
+            temp_output_folder = output_folder / current_stack
 
-            print("%s is processing stack %s" % (threadName, stack_name))
+            print(f"{threadName} is processing stack {current_stack}")
 
-            used_plattform = platform.system()
-
-            if used_plattform == "Linux":
-                os.system("align_image_stack -m -x -c 100 -a " + str(
-                    temp_output_folder.joinpath(stack_name))
-                          + "OUT" + data)
+            if platform.system().lower().startswith('win'):
+                HUGIN_PATH = (path_to_external / 'align_image_stack').as_posix()
             else:
-                # use additional external files under windows to execute alignment via hugin
-                os.system(str(path_to_external) + "\\align_image_stack -m -x -c 100 -a " + str(
-                    temp_output_folder.joinpath(stack_name))
-                          + "OUT" + data)
+                HUGIN_PATH = 'align_image_stack'
+
+            INPUTS = ' '.join([imgpath.as_posix() for imgpath in data])
+
+            os.system(f"{HUGIN_PATH} -m -x -c 100 -l -a {temp_output_folder / current_stack}OUT {INPUTS} -v")
 
             # TODO: try the additional modifier " --gpu " to hopefully speed up the process!!!
 
-            image_str_focus = ""
-            temp_files = []
             print("\nFocus stacking...")
 
-            num_images_in_stack = len(data.split(" ")) - 1
-
             # go through list in reverse order (better results of focus stacking)
-            for img in range(num_images_in_stack):
-                if img < 10:
-                    path = str(temp_output_folder.joinpath(stack_name)) + "OUT000" + str(img) + ".tif"
-                elif img < 100:
-                    path = str(temp_output_folder.joinpath(stack_name)) + "OUT00" + str(img) + ".tif"
-                elif img < 1000:
-                    path = str(temp_output_folder.joinpath(stack_name)) + "OUT0" + str(img) + ".tif"
-                else:
-                    path = str(temp_output_folder.joinpath(stack_name)) + "OUT" + str(img) + ".tif"
+            paths = [temp_file.as_posix() for temp_file in temp_output_folder.glob(f"{current_stack}OUT*.tif")]
+            paths.sort()
+            paths.reverse()
 
-                temp_files.append(path)
-                image_str_focus += " " + path
+            image_str_focus = ' '.join(paths)
 
-            output_path = str(output_folder.joinpath(stack_name)) + ".tif"
+            output_path = output_folder / f"{stack_name}.tif"
             print(output_path)
 
-            print("generating:", image_str_focus + "\n")
+            print(f"generating: {image_str_focus}\n")
+
+            if platform.system().lower().startswith('win'):
+                ENFUSE_PATH = (path_to_external / 'enfuse').as_posix()
+            else:
+                ENFUSE_PATH = 'enfuse'
+
+            os.system(f"{ENFUSE_PATH}"
+                            f" --exposure-weight=0"
+                            f" --saturation-weight=0"
+                            f" --contrast-weight=1"
+                            f" --hard-mask"
+                            f" --contrast-edge-scale=1"
+                            f" --output={output_path}"
+                            f" {image_str_focus}")
 
             # --save-masks     to save soft and hard masks
             # --gray-projector=l-star alternative stacking method
 
-            if used_plattform == "Linux":
-                os.system("enfuse --exposure-weight=0 --saturation-weight=0 --contrast-weight=1 " +
-                          "--hard-mask --contrast-edge-scale=1 --output=" +
-                          output_path + image_str_focus)
-            else:
-                os.system(
-                    str(path_to_external) + "\\enfuse --exposure-weight=0 --saturation-weight=0 --contrast-weight=1 " +
-                    "--hard-mask --contrast-edge-scale=1 --output=" +
-                    output_path + image_str_focus)
+            print(f"Stacked image saved as {output_path}")
 
-            print("Stacked image saved as", output_path)
-
-            stacked = Image.open(output_path)
             if args["sharpen"]:
+                stacked = Image.open(output_path)
                 enhancer = ImageEnhance.Sharpness(stacked)
                 sharpened = enhancer.enhance(1.5)
                 sharpened.save(output_path)
 
                 print("Sharpened", output_path)
 
-            for temp_img in temp_files:
-                if used_plattform == "Linux":
-                    os.system("rm " + str(temp_img))
-                else:
-                    os.system("del " + str(temp_img))
-
-            print("Deleted temporary files of stack", data)
         else:
             queueLock.release()
 
@@ -260,7 +238,7 @@ if __name__ == '__main__':
         print("Output images will NOT be additionally sharpened")
 
     # convert input str of file location into path object
-    args["images"] = Path(args["images"])
+    input_images_folder = Path(args["images"])
 
     blurry_removed = input("Have you removed blurry images already? [y/n] default n")
 
@@ -272,9 +250,11 @@ if __name__ == '__main__':
     queueLock = threading.Lock()
 
     # define paths to all images and set the maximum number of items in the queue equivalent to the number of images
-    all_image_paths = os.listdir(args["images"])  # dir is your directory path
+    all_image_paths = list(input_images_folder.glob('*.tif'))
 
-    workQueue = queue.Queue(len(all_image_paths))
+    nb_imgs = len(all_image_paths)
+
+    workQueue = queue.Queue(nb_imgs)
     threads = []
     threadID = 1
 
@@ -320,8 +300,7 @@ if __name__ == '__main__':
         cv2.destroyAllWindows()
     else:
         # if blurry images have been discarded already add all paths to "usable_images"
-        for image_path in all_image_paths:
-            usable_images.append(image_path)
+        usable_images = all_image_paths
 
     # as threads may terminate at different times the file list needs to be sorted
     usable_images.sort()
@@ -336,51 +315,33 @@ if __name__ == '__main__':
 
     path_to_external = Path.cwd().parent.joinpath("external")
 
-    output_folder = Path(str(args["images"]) + "_stacked")
+    output_folder = input_images_folder.parent / f"{input_images_folder.stem}_stacked"
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    try:
+        output_folder.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        print("Folder is already there")
+    else:
         print("made folder!")
 
-    # revert the order of images to begin with the image furthest away
-    # -> maximise field of view during alignment and leads to better blending results with less ghosting
-    usable_images.reverse()
-
     # group images of each stack together
-    pics = len(usable_images)
-    stacks = []
+    nb_usable_imgs = len(usable_images)
 
     print("\nSorting in-focus images into stacks...")
-    for i in range(pics):
+    stacks_names = set([imgpath.stem.split('step')[0] for imgpath in usable_images])
+    nb_stacks = len(stacks_names)
 
-        image_str_align = ""
-
-        current_stack_name = usable_images[0][:-15]
-        print("Created stack:", current_stack_name)
-
-        if not os.path.exists(output_folder.joinpath(current_stack_name)):
-            os.makedirs(output_folder.joinpath(current_stack_name))
-            print("made corresponding temporary folder!")
-        else:
+    for stack_name in stacks_names:
+        try:
+            (output_folder / stack_name).mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
             print("corresponding temporary folder already exists!")
-
-        path_num = 0
-        for path in usable_images:
-            if current_stack_name == str(path)[:-15]:
-                image_str_align += " " + str(args["images"].joinpath(path))
-                path_num += 1
-            else:
-                break
-
-        del usable_images[0:path_num]
-
-        stacks.append(image_str_align)
-
-        if len(usable_images) < 2:
-            break
+        else:
+            print("made corresponding temporary folder!")
 
     # sort stacks in ascending order
-    stacks.sort()
+    stacks_names = list(stacks_names)
+    stacks_names.sort()
 
     """
     ### Alignment and stacking of images ###
@@ -389,12 +350,12 @@ if __name__ == '__main__':
     # setup as many threads as there are (virtual) CPUs
     exitFlag_stacking = 0
     # only use a fourth of the number of CPUs for stacking as hugin and enfuse utilise multi core processing in part
-    threadList_stacking = createThreadList(int(num_virtual_cores / 4))
-    print("Using", len(threadList_stacking), "threads for stacking...")
+    threadList_stacking = createThreadList(min(nb_stacks, int(num_virtual_cores / 4)))
+    print(f"Using {len(threadList_stacking)} threads for stacking...")
     queueLock = threading.Lock()
 
     # define paths to all images and set the maximum number of items in the queue equivalent to the number of images
-    workQueue_stacking = queue.Queue(len(stacks))
+    workQueue_stacking = queue.Queue(nb_stacks)
     threads = []
     threadID = 1
 
@@ -407,8 +368,14 @@ if __name__ == '__main__':
 
     # Fill the queue with stacks
     queueLock.acquire()
-    for stack in stacks:
-        workQueue_stacking.put(stack)
+    for stack_name in stacks_names:
+        images_current_stack = list(input_images_folder.glob(f"{stack_name}*.tif"))
+        # revert the order of images to begin with the image the furthest away
+        # -> maximise field of view during alignment and leads to better blending results with less ghosting
+        images_current_stack.sort()
+        images_current_stack.reverse()
+
+        workQueue_stacking.put(images_current_stack)
     queueLock.release()
 
     # Wait for queue to empty
@@ -424,11 +391,9 @@ if __name__ == '__main__':
     print("Exiting Main Stacking Thread")
     print("Deleting temporary folders")
 
-    for stack in stacks:
-        stack_name = stack.split(" ")[1]
-        stack_name = Path(stack_name).name[:-15]
-        os.rmdir(output_folder.joinpath(stack_name))
-        print("removed  ...", stack_name)
+    for stack_name in stacks_names:
+        shutil.rmtree((output_folder / stack_name))
+        print(f"removed {stack_name}")
 
     print("Stacking finalised!")
-    print("Time elapsed:", time.time() - start)
+    print(f"Time elapsed: {time.time() - start}")
