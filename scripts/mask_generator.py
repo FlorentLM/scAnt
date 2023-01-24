@@ -29,11 +29,6 @@ class AlphaExtractionThread(threading.Thread):
         print("Exiting " + self.name)
 
 
-def getThreads():
-    """ Returns the number of available threads on a posix/win based system """
-    return os.cpu_count()
-
-
 def createThreadList(num_threads):
     threadNames = []
     for t in range(num_threads):
@@ -336,7 +331,7 @@ if __name__ == '__main__':
 
     # setup half as many threads as there are (virtual) CPUs
     exitFlag_alpha = 0
-    num_virtual_cores = getThreads()
+    num_virtual_cores = os.cpu_count()
     threadList = createThreadList(int(num_virtual_cores / 4))
     print("Found", num_virtual_cores, "(virtual) cores...")
     queueLock_alpha = threading.Lock()

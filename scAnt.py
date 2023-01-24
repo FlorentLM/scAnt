@@ -11,7 +11,7 @@ from GUI.scAnt_GUI_mw import Ui_MainWindow  # importing main window of the GUI
 
 import scripts.project_manager as ymlRW
 from scripts.Scanner_Controller import ScannerController
-from scripts.processStack import getThreads, stack_images, mask_images
+from scripts.processStack import stack_images, mask_images
 from scripts.write_meta_data import write_exif_to_img, get_default_values
 
 """
@@ -338,7 +338,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.ui.pushButton_saveConfig.pressed.connect(self.writeConfig)
 
         # stack and mask images
-        self.maxStackThreads = max(min([int(getThreads() / 6), 2]), 1)
+        self.maxStackThreads = max(min([int(os.cpu_count() / 6), 2]), 1)
         # run no more than 3 stacking threads simultaneously but no less than 1
         self.postScanStacking = False
         self.activeThreads = 0

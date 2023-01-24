@@ -56,11 +56,6 @@ def process_data(threadName, q):
             queueLock.release()
 
 
-def getThreads():
-    """ Returns the number of available threads on a posix/win based system """
-    return os.cpu_count()
-
-
 def createThreadList(num_threads):
     threadNames = []
     for t in range(num_threads):
@@ -121,7 +116,7 @@ def checkFocus(image_path):
         color_text = (255, 0, 0)
         usable_images.append(image_path)
 
-    print(image_path.stem, "is", text)
+    print(image_path, "is", text)
 
     if args["display"]:
         # show the image
@@ -244,7 +239,7 @@ if __name__ == '__main__':
 
     # setup as many threads as there are (virtual) CPUs
     exitFlag = 0
-    num_virtual_cores = getThreads()
+    num_virtual_cores = os.cpu_count()
     threadList = createThreadList(num_virtual_cores)
     print("Found", num_virtual_cores, "(virtual) cores...")
     queueLock = threading.Lock()

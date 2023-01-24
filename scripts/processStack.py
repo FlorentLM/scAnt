@@ -1,37 +1,28 @@
 # image processing utilities to create stacked / blended / masked images while scanning
 
-
 import cv2
 import os
-
 from PIL import Image, ImageEnhance
 from skimage import measure
-import sys
 import numpy as np
 from pathlib import Path
 import platform
-
-
-def getThreads():
-    """ Returns the number of available threads on a posix/win based system """
-    return os.cpu_count()
 
 
 """
 Stacking Section
 """
 
-
 def variance_of_laplacian(image):
     # compute the Laplacian of the image and then return the focus
-    # measure, which is simply the valirance of the Laplacian
+    # measure, which is simply the variance of the Laplacian
     # using the following 3x3 convolutional kernel
     """
     [0   1   0]
     [1  -4   1]
     [0   1   0]
 
-    as recommenden by Pech-Pacheco et al. in their 2000 ICPR paper,
+    as recommended by Pech-Pacheco et al. in their 2000 ICPR paper,
     Diatom autofocusing in brightfield microscopy: a comparative study.
     """
     # apply median blur to image to suppress noise in RAW files
