@@ -17,6 +17,9 @@ from pathlib import Path
 import platform
 import shutil
 
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 class myThread(threading.Thread):
     def __init__(self, threadID, name, q):
@@ -235,13 +238,15 @@ if __name__ == '__main__':
     # convert input str of file location into path object
     input_images_folder = Path(args["images"])
 
+    input_images_folder = Path("/Users/florent/Desktop/atta_vollenweideri_000139 2/test_project/RAW")
+
     blurry_removed = input("Have you removed blurry images already? [y/n] default n")
 
     # setup as many threads as there are (virtual) CPUs
     exitFlag = 0
-    num_virtual_cores = os.cpu_count()
-    threadList = createThreadList(num_virtual_cores)
-    print("Found", num_virtual_cores, "(virtual) cores...")
+    num_cores = os.cpu_count()
+    print(f"Found {num_cores} cores: running {num_cores * 2} threads...")
+    threadList = createThreadList(num_cores * 2)
     queueLock = threading.Lock()
 
     # define paths to all images and set the maximum number of items in the queue equivalent to the number of images
