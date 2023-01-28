@@ -260,14 +260,14 @@ if __name__ == '__main__':
         # thus not necessary to pass them to map() - only the iterable containing the image paths is needed.
         # However, the 'fork' start method is unsafe on macOS, and does not exist on Windows.
 
-        focus_proc_results = executor.map(focus_check_multi,
+        focus_results = executor.map(focus_check_multi,
                                           paths_by_stack,          # 1 value of the iterable for 1 child process
                                           repeat(FOCUS_THRESH),    # the arg is repeated, same for each child process
                                           repeat(DISPLAY),
                                           repeat(VERBOSE))
     end = time.time()
 
-    focus_results = list(focus_proc_results)
+    focus_results = list(focus_results)
 
     for stack_name, stack_result in zip(stacks_names, focus_results):
         sharp_images, blurry_images = stack_result
