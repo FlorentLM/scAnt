@@ -261,8 +261,8 @@ if __name__ == '__main__':
         # However, the 'fork' start method is unsafe on macOS, and does not exist on Windows.
 
         focus_results = executor.map(focus_check_multi,
-                                          paths_by_stack,          # 1 value of the iterable for 1 child process
-                                          repeat(FOCUS_THRESH),    # the arg is repeated, same for each child process
+                                          paths_by_stack,          # 1 value of the iterable per child process
+                                          repeat(FOCUS_THRESH),    # same arg repeated in all child processes
                                           repeat(DISPLAY),
                                           repeat(VERBOSE))
     end = time.time()
