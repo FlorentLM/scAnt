@@ -9,6 +9,7 @@ import platform
 import shutil
 import subprocess
 from itertools import repeat
+from skimage.transform import resize
 
 
 def get_stacks_names(project_folder):
@@ -78,6 +79,7 @@ def measure_focus(image, display=False):
     """
     # Apply median blur to suppress noise in RAW files
     blurred_image = cv2.medianBlur(image, 3)
+    # TODO: is there any other quick way to do it without opencv?
 
     lap_image = cv2.Laplacian(blurred_image, cv2.CV_64F)
 
@@ -86,6 +88,15 @@ def measure_focus(image, display=False):
         cv2.waitKey(1)
 
     return lap_image.var()
+
+
+def resize_img(image, scale=0.5, use_opencv=False):
+    new_shape = np.floor(np.array(image.shape[:2]) * scale).astype(int)
+    if use_opencv:
+        resized = cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
+    else:
+        resized = resize(image, new_shape, anti_aliasing=True)
+    return resized
 
 
 def neutral_grayscale(colour_image):
@@ -109,9 +120,8 @@ def focus_check_single(image_path, threshold, display, verbose):
 
     target_vsize = 600      # in pixels
     scale = image.shape[1]/target_vsize
-    new_dims = round(image.shape[1]/scale),  round(image.shape[0]/scale)
 
-    resized = cv2.resize(image, new_dims, interpolation=cv2.INTER_AREA)
+    resized = resize_img(image, scale=scale, use_opencv=True)
 
     # gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)      # isn't the human-perception-centered algorithm too biased?
     gray = neutral_grayscale(resized)

@@ -1,8 +1,6 @@
 import numpy as np
-import cv2
 from scipy.ndimage import convolve
 from skimage import filters, io
-from skimage.transform import resize
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -16,17 +14,7 @@ import matplotlib.pyplot as plt
 
 ##
 
-def resize_img(image, scale_pct=50, use_opencv=False):
-    scale = scale_pct / 100
-    new_shape = np.floor(np.array(image.shape[:2]) * scale).astype(int)
-    if use_opencv:
-        resized = cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
-    else:
-        resized = resize(image, new_shape, anti_aliasing=True)
-    return resized
-
-
-def compute_contrast(image, use_blur=False):
+def compute_contrast(image, use_blur=True):
     laplace_kernel = np.array([[0, 1, 0],
                                [1, -4, 1],
                                [0, 1, 0]])
@@ -50,7 +38,7 @@ def compute_exposition(image, sigma=0.2):
     return exposition.prod(axis=2)
 
 
-def compute_weightmap(contrast, saturation, exposition, omega_c=1, omega_s=1, omega_e=1):
+def compute_weightmap(contrast, saturation, exposition, omega_c=1.0, omega_s=1.0, omega_e=1.0):
     arrays_prod = np.stack([
         contrast ** omega_c,
         saturation ** omega_s,
