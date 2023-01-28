@@ -11,13 +11,15 @@ import subprocess
 from itertools import repeat
 
 
-def get_stacks_names(raw_folder_path):
+def get_stacks_names(project_folder):
     """
     Returns a naturally sorted list of all stacks names present in the RAW folder
     """
-    raw_folder_path = Path(raw_folder_path)
-    uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_folder_path.glob("*.tif")])
+    raw_images_folder = Path(project_folder / 'RAW')
+
+    uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_images_folder.glob("*.tif")])
     list_stacks_names = list(uniq_names)
+
     return natsorted(list_stacks_names, alg=ns.IGNORECASE)
 
 
@@ -27,7 +29,7 @@ def get_paths_by_stack(stacks_names):
     """
     all_stacks = []
     for stack in stacks_names:
-        images_current_stack = list(raw_images_folder.glob(f"{stack}*.tif"))
+        images_current_stack = list((project_folder / 'RAW').glob(f"{stack}*.tif"))
         all_stacks.append(natsorted(images_current_stack, alg=ns.IGNORECASE))
     return all_stacks
 
@@ -227,9 +229,9 @@ FOCUS_THRESH = 5
 
 if __name__ == '__main__':
 
-    raw_images_folder = Path("/Users/florent/Desktop/atta_vollenweideri_000139_2/test_project/RAW")
+    project_folder = Path("/Users/florent/Desktop/atta_vollenweideri_000139_2/test_project")
 
-    stacks_names = get_stacks_names(raw_images_folder)
+    stacks_names = get_stacks_names(project_folder)
     paths_by_stack = get_paths_by_stack(stacks_names)
 
     ##
@@ -265,7 +267,7 @@ if __name__ == '__main__':
 
     ##
 
-    aligned_images_folder = raw_images_folder.parent / 'aligned'
+    aligned_images_folder = project_folder / 'aligned'
     aligned_images_folder.mkdir(parents=True, exist_ok=True)
 
     only_focused_by_stack = [group[0] for group in focus_results]
@@ -283,7 +285,7 @@ if __name__ == '__main__':
 
     ##
 
-    stacked_images_folder = raw_images_folder.parent / 'stacked'
+    stacked_images_folder = project_folder / 'stacked'
     stacked_images_folder.mkdir(parents=True, exist_ok=True)
 
     print('Fusing...')
