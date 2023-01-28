@@ -59,7 +59,7 @@ def lookup_external_executable(bin_name):
             path_executable = Path(local_build) / f"{bin_name}.exe"
 
     else:
-        path_executable = Path(shutil.which("bin_name"))
+        path_executable = Path(shutil.which(f"{bin_name}"))
 
     return path_executable
 
