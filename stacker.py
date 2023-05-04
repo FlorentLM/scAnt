@@ -131,8 +131,6 @@ if __name__ == '__main__':
             executor.map(focus_stack_2,
                          inputs,
                          repeat(output_dir))
-
-        # focus_stack_2(inputs, output_folder=output_dir, verbose=args['verbose'])
         print('Done.')
 
         end = time.time()

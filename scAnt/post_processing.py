@@ -194,12 +194,7 @@ def fuse(images_paths, output_folder, verbose=0):
                    stdout=stdout,
                    stderr=subprocess.STDOUT)
 
-# from os.path import commonprefix
-# from pathlib import Path
-#
-# images_paths = [Path('/Users/florent/Desktop/abc_673.tif'),
-#                 Path('/Users/florent/Desktop/abc_494.tif')]
-
+import os
 def focus_stack_2(images_paths, output_folder, verbose=0):
     inputs = [p.as_posix() for p in images_paths]
 
@@ -212,12 +207,18 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
-    subprocess.run([focusstack_path.as_posix(),
-                    " --nocrop",
-                    f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
-                    *inputs
-                    ],
-                   cwd=output_folder)
+    # subprocess.run([focusstack_path.as_posix(),
+    #                 " --nocrop",
+    #                 " --no-opencl"
+    #                 f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
+    #                 *inputs
+    #                 ],
+    #                cwd=output_folder)
+    # WHYYYYYYY wtf
+    os.system(f"{focusstack_path.as_posix()}"
+              f" --nocrop"
+              f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
+              f" {' '.join(inputs)}")
 
 
 #######################################################################################################################
