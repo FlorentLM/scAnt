@@ -105,6 +105,7 @@ if __name__ == '__main__':
 
         focus_results = list(focus_results)
         inputs = [group[0] for group in focus_results]
+        nb_stacks = len(inputs)
 
         print(' Done.')
         end = time.time()
@@ -134,12 +135,8 @@ if __name__ == '__main__':
                     [executor.submit(focus_stack_2, s, output_dir) for s in inputs]
             ):
                 stacks_done += 1
-                print(f"Processed {stacks_done}/{nb_stacks}")
-
-        # with ProcessPoolExecutor(max_workers=1) as executor:
-        #     executor.map(focus_stack_2,
-        #                  inputs,
-        #                  repeat(output_dir))
+                if args['verbose'] == 1:
+                    print(f"Processed stack [{stacks_done}/{nb_stacks}]")
 
         print('Done.')
 
@@ -155,10 +152,15 @@ if __name__ == '__main__':
         else:
             print('Aligning ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
+        stacks_done = 0
         with ProcessPoolExecutor(max_workers=max_processes) as executor:
-            executor.map(alignment,
-                         inputs,
-                         repeat(output_dir))
+            for r in as_completed(
+                    [executor.submit(alignment, s, output_dir) for s in inputs]
+            ):
+                stacks_done += 1
+                if args['verbose'] == 1:
+                    print(f"Aligned stack [{stacks_done}/{nb_stacks}]")
+
         print('Done.')
 
         end = time.time()
@@ -171,10 +173,14 @@ if __name__ == '__main__':
         else:
             print('Fusing ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
+        stacks_done = 0
         with ProcessPoolExecutor(max_workers=max_processes) as executor:
-            executor.map(fuse,
-                         inputs,
-                         repeat(output_dir))
+            for r in as_completed(
+                    [executor.submit(fuse, s, output_dir) for s in inputs]
+            ):
+                stacks_done += 1
+                if args['verbose'] == 1:
+                    print(f"Fused stack [{stacks_done}/{nb_stacks}]")
         print('Done.')
 
         end = time.time()
