@@ -2,7 +2,7 @@ import argparse
 import time
 from os import cpu_count
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections.abc import Iterable
 from scAnt import files_io
 from scAnt.post_processing import *
@@ -127,10 +127,20 @@ if __name__ == '__main__':
         else:
             print('Stacking ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
+        nb_stacks = len(inputs)
+        stacks_done = 0
         with ProcessPoolExecutor(max_workers=1) as executor:
-            executor.map(focus_stack_2,
-                         inputs,
-                         repeat(output_dir))
+            for r in as_completed(
+                    [executor.submit(focus_stack_2, s, output_dir) for s in inputs]
+            ):
+                stacks_done += 1
+                print(f"Processed {stacks_done}/{nb_stacks}")
+
+        # with ProcessPoolExecutor(max_workers=1) as executor:
+        #     executor.map(focus_stack_2,
+        #                  inputs,
+        #                  repeat(output_dir))
+
         print('Done.')
 
         end = time.time()

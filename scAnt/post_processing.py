@@ -207,18 +207,19 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
-    # subprocess.run([focusstack_path.as_posix(),
-    #                 " --nocrop",
-    #                 " --no-opencl"
-    #                 f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
-    #                 *inputs
-    #                 ],
-    #                cwd=output_folder)
-    # WHYYYYYYY wtf
-    os.system(f"{focusstack_path.as_posix()}"
-              f" --nocrop"
-              f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
-              f" {' '.join(inputs)}")
+    subprocess.run([focusstack_path.as_posix(),
+                    " --nocrop",
+                    " --no-opencl"
+                    f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
+                    *inputs
+                    ],
+                   cwd=output_folder,
+                   shell=True)
+
+    # os.system(f"{focusstack_path.as_posix()}"
+    #           f" --nocrop"
+    #           f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
+    #           f" {' '.join(inputs)}")
 
 
 #######################################################################################################################
