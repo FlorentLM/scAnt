@@ -176,7 +176,7 @@ def lookup_bin(bin_name, prefer_system=False, verbose=0):
     if not local_folder.exists():
         local_folder = cwd.parent / 'external'
 
-    local_bin = shutil.which(f"{bin_name}", path=local_folder)
+    local_bin = shutil.which(f"{bin_name}", path=local_folder.as_posix())
 
     if local_bin is not None:
         return Path(local_bin)
