@@ -8,50 +8,32 @@ from scAnt import files_io
 from scAnt.post_processing import *
 
 
-def str2list(s):
-    if not type(s) is str and isinstance(s, Iterable):
-        return s
-    else:
-        return s.split(',')
+base = Path("D:\scans")
+all_folders = [
+    base / 'cataglyphis_velox_2',
+    base / 'cataglyphis_velox_3',
+    base / 'cataglyphis_velox_4',
+    base / 'messor_1',
+    base / 'messor_2',
+    base / 'messor_head_1',
+    base / 'cataglyphis_head_1',
+    base / 'cataglyphis_head_2'
+]
 
+for folder in all_folders:
 
-if __name__ == '__main__':
+    time.sleep(10)
 
-    parser = argparse.ArgumentParser(description='Focus stack images.')
-
-    parser.add_argument("-i", "--images",
-                        type=str2list,
-                        required=True,
-                        help="Path to input directory of images, or list of image paths")
-    parser.add_argument("-t", "--threshold",
-                        type=float,
-                        default=10.0,
-                        help="Focus measures that fall below this value will be considered 'blurry'")
-    parser.add_argument("-s", "--sharpen",
-                        action='store_true',
-                        help="Apply sharpening to final result")
-    parser.add_argument("-d", "--display",
-                        action='store_true',
-                        help="Show images with displayed focus score")
-    parser.add_argument("-v", "--verbose",
-                        action='count',
-                        default=0,
-                        help="Verbose mode [levels 0, 1 or 2]")
-    parser.add_argument("-b", "--single_stack",
-                        action='store_true',
-                        help="Consider the inputs as a SINGLE stack")
-    parser.add_argument("-f", "--focus_check",
-                        action='store_true',
-                        help="Check whether out-of-focus images should be discarded before stacking")
-    parser.add_argument("-m", "--method",
-                        type=str,
-                        default="Default",
-                        help="Blending method (Default, 1-Star, Masks)")
-    parser.add_argument("-x", "--experimental",
-                        action='store_true',
-                        help="Use experimental stacking method")
-
-    args = vars(parser.parse_args())
+    args = {'images': folder.as_posix(),
+            'threshold': 10.0,
+            'sharpen': False,
+            'display': False,
+            'verbose': 2,
+            'single_stack': False,
+            'focus_check': False,
+            'method': 'Default',
+            'experimental': True,
+            }
 
     if args['verbose'] > 0:
         print("\n[INFO]:\n",
