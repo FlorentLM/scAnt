@@ -194,10 +194,16 @@ def fuse(images_paths, output_folder, verbose=0):
                    stdout=stdout,
                    stderr=subprocess.STDOUT)
 
+# from os.path import commonprefix
+# from pathlib import Path
+#
+# images_paths = [Path('/Users/florent/Desktop/abc_673.tif'),
+#                 Path('/Users/florent/Desktop/abc_494.tif')]
+
 def focus_stack_2(images_paths, output_folder, verbose=0):
     inputs = [p.as_posix() for p in images_paths]
 
-    stack_name = commonprefix([file.name for file in images_paths])
+    stack_name = commonprefix([file.stem for file in images_paths]).replace('_step', '')
 
     output_folder = Path(output_folder)
     focusstack_path = lookup_bin('focus-stack')
