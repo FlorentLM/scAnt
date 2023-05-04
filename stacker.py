@@ -27,7 +27,7 @@ def str2list(s):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='Focus stack images.')
 
     parser.add_argument("-i", "--images",
                         type=str2list,
@@ -49,10 +49,10 @@ if __name__ == '__main__':
                         action='count',
                         default=0,
                         help="Verbose mode [levels 0, 1 or 2]")
-    parser.add_argument("-b", "--single_stack",
-                        type=str2bool,
-                        default=False,
-                        help="Process all images in the specified folder [True / False]")
+    # parser.add_argument("-b", "--single_stack",
+    #                     type=str2bool,
+    #                     default=False,
+    #                     help="Process all images in the specified folder [True / False]")
     parser.add_argument("-f", "--focus_check",
                         type=str2bool,
                         default=True,
@@ -70,6 +70,7 @@ if __name__ == '__main__':
 
     if args['verbose'] > 0:
         print("[INFO]:\n",
+                f"  - Verbosity level: {args['verbose']}\n",
               f"""  - Out of focus images will {f'be discarded using a laplacian variance threshold of {args["threshold"]}' if args["focus_check"] else 'NOT be discarded'}\n""",
                 f"  - {'Previews' if args['display'] else 'NO previews'} will be displayed during focus check\n",
                 f"  - Output images {'will be' if args['sharpen'] else 'will NOT be'} additionally sharpened\n",
