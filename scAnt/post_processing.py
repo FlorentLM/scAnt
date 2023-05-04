@@ -214,7 +214,7 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
         stdout = subprocess.DEVNULL
     subprocess.run([focusstack_path.as_posix(),
                     " --nocrop",
-                    f" --output={output_folder / (stack_name + '.tif')}",
+                    f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
                     *inputs
                     ],
                    cwd=output_folder)
