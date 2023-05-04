@@ -127,7 +127,7 @@ if __name__ == '__main__':
         else:
             print('Stacking ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
-        with ProcessPoolExecutor(max_workers=1) as executor:
+        with ProcessPoolExecutor(max_workers=max_processes) as executor:
             executor.map(focus_stack_2,
                          inputs,
                          repeat(output_dir))
