@@ -122,40 +122,51 @@ if __name__ == '__main__':
     if args['experimental_stacking']:
 
         start = time.time()
-        print('Stacking...', end='', flush=True)
+        if args['verbose'] > 0:
+            print('Stacking ...')
+        else:
+            print('Stacking ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
         with ProcessPoolExecutor(max_workers=max_processes) as executor:
             executor.map(focus_stack_2,
                          inputs,
                          repeat(output_dir))
+        print('Done.')
 
         end = time.time()
         if args['verbose'] > 0:
-            print(f"Alignment took {end - start} seconds.")
+            print(f"Stacking took {end - start} seconds.")
 
     else:
 
         start = time.time()
-        print('Aligning...', end='', flush=True)
+        if args['verbose'] > 0:
+            print('Aligning ...')
+        else:
+            print('Aligning ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
         with ProcessPoolExecutor(max_workers=max_processes) as executor:
             executor.map(alignment,
                          inputs,
                          repeat(output_dir))
+        print('Done.')
 
         end = time.time()
         if args['verbose'] > 0:
             print(f"Alignment took {end - start} seconds.")
 
         start = time.time()
-        print('Fusing...', end='', flush=True)
+        if args['verbose'] > 0:
+            print('Fusing ...')
+        else:
+            print('Fusing ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
         with ProcessPoolExecutor(max_workers=max_processes) as executor:
             executor.map(fuse,
                          inputs,
                          repeat(output_dir))
+        print('Done.')
 
-        print(' Done.')
         end = time.time()
         if args['verbose'] > 0:
             print(f"Fuse took {end - start} seconds.")
