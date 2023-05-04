@@ -9,10 +9,10 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 
 from GUI.scAnt_GUI_mw import Ui_MainWindow  # importing main window of the GUI
 
-import scripts.project_manager as ymlRW
-from scripts.Scanner_Controller import ScannerController
-from scripts.processStack import stack_images, mask_images
-from scripts.write_meta_data import write_exif_to_img, get_default_values
+import scAnt.project_manager as ymlRW
+from scAnt.Scanner_Controller import ScannerController
+from scAnt.post_processing import stack_images, mask_images
+from scAnt.write_meta_data import write_exif_to_img, get_default_values
 
 """
 Locations of required executables and how to use them:
@@ -1251,7 +1251,8 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         print("\nSTACKING: \n\n", stack)
         # using try / except to continue stacking with other images in case an error occurs
         try:
-            stacked_output = stack_images(input_paths=stack, threshold=self.stackFocusThreshold,
+            stacked_output = stack_images(input_paths=stack,
+                                          threshold=self.stackFocusThreshold,
                                           sharpen=self.stackSharpen,
                                           stacking_method=self.stackMethod)
 

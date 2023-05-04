@@ -1,5 +1,5 @@
-from write_meta_data import write_exif_to_img
-from project_manager import read_config_file
+from scAnt.write_meta_data import write_exif_to_img
+from scAnt.project_manager import read_config_file
 import argparse
 from pathlib import Path
 import os

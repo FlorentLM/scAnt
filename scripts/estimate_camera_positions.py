@@ -1,6 +1,4 @@
-from scripts.project_manager import read_config_file
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from scAnt.project_manager import read_config_file
 from pathlib import Path
 import numpy as np
 import math

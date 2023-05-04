@@ -1,242 +1,220 @@
-# image processing utilities to create stacked / blended / masked images while scanning
-
-import cv2
-import os
-from PIL import Image, ImageEnhance
-from skimage import measure
-import numpy as np
 from pathlib import Path
-import platform
+import threading
+import cv2
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+from natsort import natsorted, ns
+import subprocess
+from itertools import repeat
+from skimage.transform import resize
+from scAnt.files_io import lookup_bin
 
 
-"""
-Stacking Section
-"""
+#######################################################################################################################
+#                                                 Stacking Section                                                    #
+#######################################################################################################################
 
-def variance_of_laplacian(image):
-    # compute the Laplacian of the image and then return the focus
-    # measure, which is simply the variance of the Laplacian
-    # using the following 3x3 convolutional kernel
+
+def measure_focus(image, display=False):
     """
-    [0   1   0]
-    [1  -4   1]
-    [0   1   0]
+    Computes the Laplacian image using the following 3x3 convolutional kernel:
+        [0   1   0]
+        [1  -4   1]
+        [0   1   0]
 
-    as recommended by Pech-Pacheco et al. in their 2000 ICPR paper,
-    Diatom autofocusing in brightfield microscopy: a comparative study.
+    And returns the focus measure, which is simply the variance of the Laplacian image.
+
+    Pech-Pacheco et al., "Diatom autofocusing in brightfield microscopy: a comparative study", ICPR-2000,
+    pp. 314-317 vol.3, doi: 10.1109/ICPR.2000.903548.
+
     """
-    # apply median blur to image to suppress noise in RAW files
+    # Apply median blur to suppress noise in RAW files
     blurred_image = cv2.medianBlur(image, 3)
+    # TODO: is there any other quick way to do it without opencv?
+
     lap_image = cv2.Laplacian(blurred_image, cv2.CV_64F)
-    lap_var = lap_image.var()
 
-    return lap_var
+    if display:
+        cv2.imshow("Laplacian of Image", lap_image)
+        cv2.waitKey(1)
+
+    return lap_image.var()
 
 
-def checkFocus(image_path, threshold, usable_images, rejected_images):
-    image = cv2.imread(str(image_path))
+def resize_img(image, scale=0.5, use_opencv=False):
+    new_shape = np.floor(np.array(image.shape[:2]) * scale).astype(int)
+    if use_opencv:
+        resized = cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
+    else:
+        resized = resize(image, new_shape, anti_aliasing=True)
+    return resized
 
-    # original window size (due to input image)
-    # = 2448 x 2048 -> time to size it down!
-    scale_percent = 15  # percent of original size
-    width = int(image.shape[1] * scale_percent / 100)
-    height = int(image.shape[0] * scale_percent / 100)
-    dim = (width, height)
-    # resize image
-    resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
-    gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-    fm = variance_of_laplacian(gray)
+def neutral_grayscale(colour_image):
+    """
+    Computes the grayscale version of an image without the human-perception bias
+    """
+    summed_channels = colour_image.sum(axis=2)
+    normalised_lower = summed_channels - summed_channels.min()
+    mono = (normalised_lower / normalised_lower.max() * 255).astype(np.uint8)
+    return mono
 
-    # if the focus measure is less than the supplied threshold,
-    # then the image should be considered "blurry"
-    if fm < threshold:
+
+def focus_check_single(image_path, threshold, display=False, verbose=0):
+    """
+    Performs the focus check on a single image and decides if it is blurry or not, based on the passed threshold value
+    """
+    if verbose == 2:
+        print(f"Thread {str(threading.get_ident())[-5:]} (PID {threading.get_native_id()}) processing {image_path.stem}{image_path.suffix}")
+
+    image = cv2.imread(image_path.as_posix())
+
+    target_vsize = 600      # in pixels
+    scale = target_vsize/image.shape[1]
+
+    resized = resize_img(image, scale=scale, use_opencv=True)
+
+    # gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)      # isn't the human-perception-centered algorithm too biased?
+    gray = neutral_grayscale(resized)
+
+    focus_score = measure_focus(gray, display=display)
+
+    # If the focus measure is less than the supplied threshold, then the image should be considered "blurry"
+    if focus_score < threshold:
         text = "BLURRY"
-        color_text = (0, 0, 255)
-        rejected_images.append(image_path.name)
+        col = (0, 0, 255)
+        is_focused = False
+
     else:
-        text = "NOT Blurry"
-        color_text = (255, 0, 0)
-        usable_images.append(image_path.name)
+        text = "NOT blurry"
+        col = (255, 0, 0)
+        is_focused = True
 
-    print(image_path.name, "is", text)
+    if verbose > 0:
+        print(f"{image_path.stem}{image_path.suffix} is {text} (score: {focus_score:.2f})")
 
-    return usable_images, rejected_images
+    if display:
+        cv2.putText(resized, f"{text}: {focus_score:.2f}", (10, 30), cv2.FONT_HERSHEY_DUPLEX, 0.8, col, 3)
+        cv2.imshow("Image", resized)
+        cv2.waitKey(1)
 
-
-def process_stack(data, output_folder, path_to_external, sharpen):
-    stack_name = data.split(" ")[1]
-    stack_name = Path(stack_name).name[:-15]
-
-    temp_output_folder = output_folder.joinpath(stack_name)
-
-    used_platform = platform.system()
-
-    if used_platform == "Linux":
-        os.system("align_image_stack -m -x -c 100 -a " + str(
-            temp_output_folder.joinpath(stack_name))
-                  + "OUT" + data)
-    else:
-        # use additional external files under windows to execute alignment via hugin
-        os.system(str(path_to_external) + "\\align_image_stack -m -x -c 100 -a " + str(
-            temp_output_folder.joinpath(stack_name))
-                  + "OUT" + data)
-
-    image_str_focus = ""
-    temp_files = []
-    print("\nFocus stacking...")
-
-    num_images_in_stack = len(data.split(" ")) - 1
-
-    # go through list in reverse order (better results of focus stacking)
-    for img in range(num_images_in_stack):
-        if img < 10:
-            path = str(temp_output_folder.joinpath(stack_name)) + "OUT000" + str(img) + ".tif"
-        elif img < 100:
-            path = str(temp_output_folder.joinpath(stack_name)) + "OUT00" + str(img) + ".tif"
-        elif img < 1000:
-            path = str(temp_output_folder.joinpath(stack_name)) + "OUT0" + str(img) + ".tif"
-        else:
-            path = str(temp_output_folder.joinpath(stack_name)) + "OUT" + str(img) + ".tif"
-
-        temp_files.append(path)
-        image_str_focus += " " + path
-
-    output_path = str(output_folder.joinpath(stack_name)) + ".tif"
-    print(output_path)
-
-    print("generating:", image_str_focus + "\n")
-
-    # --save-masks     to save soft and hard masks
-    # --gray-projector=l-star alternative stacking method
-
-    if used_platform == "Linux":
-        os.system("enfuse --exposure-weight=0 --saturation-weight=0 --contrast-weight=1 " +
-                  "--hard-mask --contrast-edge-scale=1 --output=" +
-                  output_path + image_str_focus)
-    else:
-        os.system(str(path_to_external) + "\\enfuse --exposure-weight=0 --saturation-weight=0 --contrast-weight=1 " +
-                  "--hard-mask --contrast-edge-scale=1 --output=" +
-                  output_path + image_str_focus)
-
-    print("Stacked image saved as", output_path)
-
-    stacked = Image.open(output_path)
-    if sharpen:
-        enhancer = ImageEnhance.Sharpness(stacked)
-        sharpened = enhancer.enhance(1.5)
-        sharpened.save(output_path)
-
-        print("Sharpened", output_path)
-
-    for temp_img in temp_files:
-        if used_platform == "Linux":
-            os.system("rm " + str(temp_img))
-        else:
-            os.system("del " + str(temp_img))
-
-    print("Deleted temporary files of stack", data)
-
-    return output_path
+    return image_path, is_focused, focus_score
 
 
-def stack_images(input_paths, threshold=10.0, sharpen=False, stacking_method="Default"):
-    images = Path(input_paths[0]).parent
-
-    all_image_paths = []
-    for img_path in input_paths:
-        all_image_paths.append(Path(img_path))
-
-    usable_images = []
-    rejected_images = []
-
-    for path in all_image_paths:
-        usable_images, rejected_images = checkFocus(path, threshold, usable_images, rejected_images)
-
-    usable_images.sort()
-
-    if len(usable_images) > 1:
-        print("\nThe following images are sharp enough for focus stacking:\n")
-        for path in usable_images:
-            print(path)
-    else:
-        print("No images suitable for focus stacking found!")
-        exit()
-
-    path_to_external = Path.cwd().joinpath("external")
-    output_folder = images.parent.joinpath("stacked")
-
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-        print("made folder!")
-
-    # revert the order of images to begin with the image furthest away
-    # -> maximise field of view during alignment and leads to better blending results with less ghosting
-    usable_images.reverse()
-
-    # group images of each stack together
-    pics = len(usable_images)
-    stacks = []
-
-    print("\nSorting in-focus images into stacks...")
-    for i in range(pics):
-
-        image_str_align = ""
-
-        current_stack_name = usable_images[0][:-15]
-        print("Created stack:", current_stack_name)
-
-        if not os.path.exists(output_folder.joinpath(current_stack_name)):
-            os.makedirs(output_folder.joinpath(current_stack_name))
-            print("made corresponding temporary folder!")
-        else:
-            print("corresponding temporary folder already exists!")
-
-        path_num = 0
-        for path in usable_images:
-            if current_stack_name == str(path)[:-15]:
-                image_str_align += " " + str(images.joinpath(path))
-                path_num += 1
-            else:
-                break
-
-        del usable_images[0:path_num]
-
-        stacks.append(image_str_align)
-
-        if len(usable_images) < 2:
-            break
-
-    # sort stacks in ascending order
-    stacks.sort()
-
+def focus_check_multi(paths_list, threshold, display=False, verbose=0):
     """
-    ### Alignment and stacking of images ###
+    Performs the focus check on a list of images, and sorts them into two lists: sharp and blurry
     """
 
-    stacked_images_paths = []
+    thread_executor = ThreadPoolExecutor(max_workers=10)        # 10 threads per process
+    thread_results = thread_executor.map(focus_check_single,
+                                         paths_list,
+                                         repeat(threshold),
+                                         repeat(display),
+                                         repeat(verbose))
 
-    for stack in stacks:
-        stacked_images_paths.append(
-            process_stack(data=stack, output_folder=output_folder, path_to_external=path_to_external, sharpen=sharpen))
+    sharp = []
+    blurry = []
 
-    print("Deleting temporary folders")
+    focused_scores = []
 
-    for stack in stacks:
-        stack_name = stack.split(" ")[1]
-        stack_name = Path(stack_name).name[:-15]
-        os.rmdir(output_folder.joinpath(stack_name))
-        print("removed  ...", stack_name)
+    for image, is_focused, score in thread_results:
+        if is_focused:
+            sharp.append(image)
+            focused_scores.append(score)
+        else:
+            blurry.append(image)
 
-    print("Stacking finalised!")
+    sharp = natsorted(sharp, alg=ns.IGNORECASE)
+    # sharp = [x for _, x in sorted(zip(focused_scores, sharp))]
+    # sharp.reverse()
+    blurry = natsorted(blurry, alg=ns.IGNORECASE)
 
-    return stacked_images_paths
+    return sharp, blurry
 
 
-"""
-Masking Section
-"""
+def alignment(images_paths, output_folder, verbose=0):
+    """
+    Aligns a list of images using Hugin, and saves the files to disk
+    """
+    prefix = images_paths[0].stem.split('step')[0]
+    inputs = [p.as_posix() for p in images_paths]
 
+    output_folder = Path(output_folder)
+    hugin_path = lookup_bin('align_image_stack')
+
+    if verbose == 2:
+        stdout = subprocess.STDOUT
+    else:
+        stdout = subprocess.DEVNULL
+    subprocess.run([hugin_path.as_posix(),
+                    "-v",
+                    "-m",
+                    "-x",
+                    "-s 1",
+                    "-c 50",
+                    # "--use-given-order",
+                    # "--align-to-first",
+                    # "--gpu",              # Should speed up the process - TODO: try it
+                    f"-a {prefix}_ALIGNED",
+                    *inputs
+                    ],
+                   cwd=output_folder,
+                   stdout=stdout,
+                   stderr=subprocess.STDOUT)
+
+
+def fuse(images_paths, output_folder, verbose=0):
+    """
+    Fuses multiple images of different focus into a focus stack, using Hugin's enfuse
+    """
+    inputs = [p.as_posix() for p in images_paths]
+    inputs.reverse()
+
+    output_folder = Path(output_folder)
+    enfuse_path = lookup_bin('enfuse')
+
+    if verbose == 2:
+        stdout = subprocess.STDOUT
+    else:
+        stdout = subprocess.DEVNULL
+    subprocess.run([enfuse_path.as_posix(),
+                    " --exposure-weight=0",
+                    " --saturation-weight=0",
+                    " --contrast-weight=1",
+                    " --hard-mask",
+                    " --contrast-edge-scale=1",
+                    # "--save-masks",               # to save soft and hard masks
+                    # "--gray-projector=l-star",    # alternative stacking method
+                    f" --output={output_folder.as_posix()}",
+                    *inputs
+                    ],
+                   cwd=output_folder,
+                   stdout=stdout,
+                   stderr=subprocess.STDOUT)
+
+def focus_stack_2(images_paths, output_folder, verbose=0):
+    inputs = [p.as_posix() for p in images_paths]
+
+    output_folder = Path(output_folder)
+    focusstack_path = lookup_bin('focus-stack')
+
+    if verbose == 2:
+        stdout = subprocess.STDOUT
+    else:
+        stdout = subprocess.DEVNULL
+    subprocess.run([focusstack_path.as_posix(),
+                    *inputs,
+                    f" --output={output_folder.as_posix()}"
+                    ],
+                   cwd=output_folder,
+                   stdout=stdout,
+                   stderr=subprocess.STDOUT)
+
+
+#######################################################################################################################
+#                                                Masking Section                                                      #
+#######################################################################################################################
 
 def filterOutSaltPepperNoise(edgeImg):
     # Get rid of salt & pepper noise.
@@ -326,7 +304,32 @@ def apply_local_contrast(img, grid_size=(7, 7)):
     return cv2.cvtColor(np.array(sharpened), cv2.COLOR_GRAY2RGB)
 
 
-def createAlphaMask(data, edgeDetector, min_rgb, max_rgb, min_bl, min_wh, create_cutout=True):
+def apply_local_contrastB(img, grid_size=(7, 7)):
+    """
+    ### CLAHE (Contrast limited Adaptive Histogram Equilisation) ###
+
+    Advanced application of local contrast. Adaptive histogram equalization is used to locally increase the contrast,
+    rather than globally, so bright areas are not pushed into over exposed areas of the histogram. The image is tiled
+    into a fixed size grid. Noise needs to be removed prior to this process, as it would be greatly amplified otherwise.
+    Similar to Adobe's "Clarity" option which also amplifies local contrast and thus pronounces edges, reduces haze.
+    """
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred_gray = cv2.GaussianBlur(gray, (3, 3), 0)
+
+    clahe = cv2.createCLAHE(clipLimit=4.2, tileGridSize=grid_size)
+    cl1 = clahe.apply(blurred_gray)
+
+    # convert to PIL format to apply laplacian sharpening
+    img_pil = Image.fromarray(cl1)
+
+    enhancer = ImageEnhance.Sharpness(img_pil)
+    sharpened = enhancer.enhance(25)
+
+    # sharpened.save(source + "\\enhanced.png")
+
+    return cv2.cvtColor(np.array(sharpened), cv2.COLOR_GRAY2RGB)
+
+def createAlphaMask(data, edgeDetector, min_rgb=108, max_rgb=144, min_bl=500, min_wh=500, create_cutout=True):
     """
     create alpha mask for the image located in path
     :img_path: image location
@@ -344,6 +347,7 @@ def createAlphaMask(data, edgeDetector, min_rgb, max_rgb, min_bl, min_wh, create
     blurred_float = blurred.astype(np.float32) / 255.0
     edges = edgeDetector.detectEdges(blurred_float) * 255.0
 
+    # required as the contour finding step is susceptible to noise
     edges_8u = np.asarray(edges, np.uint8)
     filterOutSaltPepperNoise(edges_8u)
 
@@ -422,7 +426,8 @@ def createAlphaMask(data, edgeDetector, min_rgb, max_rgb, min_bl, min_wh, create
 
     # cutout = cv2.imread(source, 1)  # TEMPORARY
 
-    cutout_blurred = cv2.GaussianBlur(cutout, (5, 5), 0)
+    # cutout_blurred = cv2.GaussianBlur(cutout, (5, 5), 0)
+    cutout_blurred = cv2.GaussianBlur(cutout, (7, 7), 0)
 
     gray = cv2.cvtColor(cutout_blurred, cv2.COLOR_BGR2GRAY)
     # threshed = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -470,6 +475,7 @@ def createAlphaMask(data, edgeDetector, min_rgb, max_rgb, min_bl, min_wh, create
         # smooth masks prevent sharp features along the outlines from being falsely matched
         """
         smooth_mask = cv2.GaussianBlur(image_cleaned_white, (11, 11), 0)
+        smooth_mask = cv2.GaussianBlur(image_cleaned_white, (5, 5), 0)
         rgba = cv2.cvtColor(cutout, cv2.COLOR_RGB2RGBA)
         # assign the mask to the last channel of the image
         rgba[:, :, 3] = smooth_mask
