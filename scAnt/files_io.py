@@ -167,7 +167,7 @@ def lookup_bin(bin_name, prefer_system=False, verbose=0):
         if system_bin is not None:
             return Path(system_bin)
         else:
-            if verbose:
+            if verbose > 0:
                 print(f"Executable {bin_name} not found in system path.\nTrying in locally-packaged binaries")
 
     # Lookup locally-packaged binaries folder
@@ -186,6 +186,6 @@ def lookup_bin(bin_name, prefer_system=False, verbose=0):
                 install_instructions()
             raise FileNotFoundError(f"{bin_name} can't be found")
         else:
-            if verbose:
+            if verbose > 0:
                 print(f"Executable {bin_name} not found in locally-packaged binaries\nUsing {bin_name} found at {Path(system_bin).parent}")
             return Path(system_bin)
