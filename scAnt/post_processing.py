@@ -8,6 +8,7 @@ import subprocess
 from itertools import repeat
 from skimage.transform import resize
 from scAnt.files_io import lookup_bin
+from os.path import commonprefix
 
 
 #######################################################################################################################
@@ -143,7 +144,7 @@ def alignment(images_paths, output_folder, verbose=0):
     output_folder = Path(output_folder)
     hugin_path = lookup_bin('align_image_stack')
 
-    if verbose == 2:
+    if verbose > 2:
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
@@ -174,7 +175,7 @@ def fuse(images_paths, output_folder, verbose=0):
     output_folder = Path(output_folder)
     enfuse_path = lookup_bin('enfuse')
 
-    if verbose == 2:
+    if verbose > 1:
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
@@ -196,16 +197,19 @@ def fuse(images_paths, output_folder, verbose=0):
 def focus_stack_2(images_paths, output_folder, verbose=0):
     inputs = [p.as_posix() for p in images_paths]
 
+    stack_name = commonprefix([file.name for file in images_paths])
+
     output_folder = Path(output_folder)
     focusstack_path = lookup_bin('focus-stack')
 
-    if verbose == 2:
+    if verbose > 1:
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
     subprocess.run([focusstack_path.as_posix(),
-                    *inputs,
-                    f" --output={output_folder.as_posix()}"
+                    " --nocrop",
+                    f" --output={output_folder / (stack_name + '.tif')}",
+                    *inputs
                     ],
                    cwd=output_folder,
                    stdout=stdout,
