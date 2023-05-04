@@ -207,6 +207,7 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
         stdout = subprocess.STDOUT
     else:
         stdout = subprocess.DEVNULL
+
     # subprocess.run([focusstack_path.as_posix(),
     #                 " --nocrop",
     #                 " --no-opencl"

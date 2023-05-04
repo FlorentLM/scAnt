@@ -8,16 +8,6 @@ from scAnt import files_io
 from scAnt.post_processing import *
 
 
-# def str2bool(s):
-#     if isinstance(s, bool):
-#         return s
-#     if s.lower() in ('yes', 'true', 't', 'y', '1'):
-#         return True
-#     elif s.lower() in ('no', 'false', 'f', 'n', '0'):
-#         return False
-#     else:
-#         raise argparse.ArgumentTypeError('Boolean value expected.')
-
 def str2list(s):
     if not type(s) is str and isinstance(s, Iterable):
         return s
@@ -49,7 +39,7 @@ if __name__ == '__main__':
                         help="Verbose mode [levels 0, 1 or 2]")
     parser.add_argument("-b", "--single_stack",
                         action='store_true',
-                        help="Process all images in the specified folder")
+                        help="Consider the inputs as a SINGLE stack")
     parser.add_argument("-f", "--focus_check",
                         action='store_true',
                         help="Check whether out-of-focus images should be discarded before stacking")
@@ -57,7 +47,7 @@ if __name__ == '__main__':
                         type=str,
                         default="Default",
                         help="Blending method (Default, 1-Star, Masks)")
-    parser.add_argument("-x", "--experimental_stacking",
+    parser.add_argument("-x", "--experimental",
                         action='store_true',
                         help="Use experimental stacking method")
 
@@ -74,7 +64,7 @@ if __name__ == '__main__':
 
     max_processes = max(1, cpu_count()-2)
 
-    inputs = files_io.get_paths(args['images'], verbose=args['verbose'])
+    inputs = files_io.get_paths(args['images'], force_single_stack=args['single_stack'], verbose=args['verbose'])
     output_dir = files_io.mk_outputdir(inputs, verbose=args['verbose'])
 
 ##
@@ -116,7 +106,7 @@ if __name__ == '__main__':
 
 ##
 
-    if args['experimental_stacking']:
+    if args['experimental']:
 
         start = time.time()
         if args['verbose'] > 0:
@@ -126,7 +116,7 @@ if __name__ == '__main__':
 
         nb_stacks = len(inputs)
         stacks_done = 0
-        with ProcessPoolExecutor(max_workers=1) as executor:
+        with ProcessPoolExecutor(max_workers=1) as executor:   # TODO - Maybe use more processes when not using the GPU?
             for r in as_completed(
                     [executor.submit(focus_stack_2, s, output_dir) for s in inputs]
             ):

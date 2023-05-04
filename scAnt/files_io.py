@@ -1,9 +1,9 @@
 from pathlib import Path
 from os.path import commonpath
+from itertools import chain
 from collections.abc import Iterable
 from natsort import natsorted, ns
 import shutil
-
 
 def to_paths(*args):
     """ Accepts strings, Path objects, or any form of iterable thereof, and returns a list of Path objects. """
@@ -71,7 +71,7 @@ def find_RAW_folder(folder_path, verbose=0):
 
     return raw_images_folder
 
-def get_paths(*list_of_paths, verbose=0):
+def get_paths(*list_of_paths, force_single_stack=False, verbose=0):
     """ Parses a string, Path object, or iterable thereof, and return the naturally sorted paths to images,
      grouped by stack into a list of lists """
 
@@ -79,34 +79,44 @@ def get_paths(*list_of_paths, verbose=0):
 
     all_stacks = []
 
-    # If only 1 path, it is probably a folder. Otherwise, find_RAW_folder() will throw an informative exception.
-    if len(list_of_paths) == 1:
+    if len(list_of_paths) == 0:
+        raise FileNotFoundError("No input given, aborting.")
+
+        # If only 1 path, it is probably the default RAW folder. Otherwise, find_RAW_folder() will throw an
+        # informative exception.
+    elif len(list_of_paths) == 1:
         raw_folder = find_RAW_folder(list_of_paths[0], verbose=verbose)
 
-        # Fetch and sort stack names
-        uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_folder.glob("*.tif")])
-        list_stacks_names = list(uniq_names)
+        if force_single_stack:
+            all_stacks = list(list_of_paths[0].glob("*.tif"))
+        else:
+            # Fetch and sort stack names
+            uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_folder.glob("*.tif")])
+            list_stacks_names = list(uniq_names)
 
-        sorted_stacks = natsorted(list_stacks_names, alg=ns.IGNORECASE)     # Not crucially needed, but why not
+            sorted_stacks = natsorted(list_stacks_names, alg=ns.IGNORECASE)  # Not crucially needed, but why not
 
-        for stack in sorted_stacks:
-            images_current_stack = list(raw_folder.glob(f"{stack}*.tif"))
-            all_stacks.append(natsorted(images_current_stack, alg=ns.IGNORECASE))
+            for stack in sorted_stacks:
+                images_current_stack = list(raw_folder.glob(f"{stack}*.tif"))
+                all_stacks.append(natsorted(images_current_stack, alg=ns.IGNORECASE))
 
-    # If more than 1 path, there are 3 cases:
+                # If more than 1 path, there are 3 cases:
     elif len(list_of_paths) > 1:
 
-        # - Multiple files, treat them as 1 stack
+        # - Multiple files, treat them as 1 stack by default
         if all([f.is_file() if f.exists() else False for f in list_of_paths]):
             all_stacks = [check_files_paths(list_of_paths, verbose=verbose)]
 
-        # - Multiple folders, treat them as separate stacks (and handle wildcards!)
+        # - Multiple folders, treat them as separate stacks (and handle wildcards!) by default
         elif all([f.is_dir() if (f.exists() or '*' in f.name) else False for f in list_of_paths]):
             for dir in list_of_paths:
                 if '*' in dir.name:
                     all_stacks.append(list(dir.parent.expanduser().glob(dir.name)))
                 else:
                     all_stacks.append(check_files_paths(dir.glob('*'), verbose=verbose))
+
+            if force_single_stack:
+                all_stacks = list(chain.from_iterable(all_stacks))
 
         # - Mix of both, throw exception
         else:
