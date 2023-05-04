@@ -20,7 +20,7 @@ def to_paths(*args):
 
     return list_of_paths
 
-def check_files_paths(list_of_paths, verbose=False):
+def check_files_paths(list_of_paths, verbose=0):
     """ Checks if files in a list of paths exist or not. Skips paths that are directories.
     Returns a list of (de-duplicated) existing files paths. """
 
@@ -32,14 +32,14 @@ def check_files_paths(list_of_paths, verbose=False):
         if imgpath.exists() and imgpath.is_file() and imgpath.suffix in extensions:
             checked.add(imgpath)
         elif imgpath.exists() and imgpath.is_dir():
-            if verbose:
+            if verbose > 0:
                 print(f"{imgpath} is a directory; skipping")
         else:
-            if verbose:
+            if verbose > 0:
                 print(f"File {imgpath} not found; skipping")
     return natsorted(checked, alg=ns.IGNORECASE)
 
-def find_RAW_folder(folder_path, verbose=False):
+def find_RAW_folder(folder_path, verbose=0):
     """ Finds the RAW folder containing images to post-process. """
 
     folder_path = Path(folder_path)
@@ -63,7 +63,7 @@ def find_RAW_folder(folder_path, verbose=False):
             raise FileNotFoundError(f"Ambiguous: Multiple RAW folders found in {folder_path}")
         else:
             raw_images_folder = folder_path / children_has_RAW[0]
-            if verbose:
+            if verbose > 0:
                 print(f"Found \"{raw_images_folder.stem}\" folder in {folder_path}")
 
     if not any(raw_images_folder.glob('*.tif')):
@@ -71,7 +71,7 @@ def find_RAW_folder(folder_path, verbose=False):
 
     return raw_images_folder
 
-def get_paths(*list_of_paths, verbose=False):
+def get_paths(*list_of_paths, verbose=0):
     """ Parses a string, Path object, or iterable thereof, and return the naturally sorted paths to images,
      grouped by stack into a list of lists """
 
@@ -112,11 +112,11 @@ def get_paths(*list_of_paths, verbose=False):
         else:
             raise AssertionError("Please either pass paths to files OR to folders, not a mix of both.")
 
-    if verbose:
+    if verbose > 0:
         print(f"Found {len(all_stacks)} stack{'s' if len(all_stacks) > 1 else ''}.")
     return all_stacks
 
-def mk_outputdir(all_stacks, verbose=False):
+def mk_outputdir(all_stacks, verbose=0):
     """ Creates the output directory in the lowest-level parent folder for all stacks, and returns the path. """
     common = Path(commonpath([commonpath(s) for s in all_stacks]))
     if 'RAW' in common.name:
@@ -126,7 +126,7 @@ def mk_outputdir(all_stacks, verbose=False):
     stacked_images_folder = common.parent / outputdir_name
     stacked_images_folder.mkdir(parents=True, exist_ok=True)
 
-    if verbose:
+    if verbose > 0:
         print(f"Created output folder: {stacked_images_folder}")
     return stacked_images_folder
 
@@ -158,7 +158,7 @@ def install_instructions():
               f'   2. Extract the zip to any location (i.e. "C:\\focus-stack") and add this location to your path:\n      `setx Path "%Path%;C:\\focus-stack"`\n      (needs to be ran as Admin)'
               )
 
-def lookup_bin(bin_name, prefer_system=False, verbose=False):
+def lookup_bin(bin_name, prefer_system=False, verbose=0):
 
     # Get system bin path
     system_bin = shutil.which(f"{bin_name}")
@@ -182,7 +182,7 @@ def lookup_bin(bin_name, prefer_system=False, verbose=False):
         return Path(local_bin)
     else:
         if system_bin is None:
-            if verbose:
+            if verbose > 0:
                 install_instructions()
             raise FileNotFoundError(f"{bin_name} can't be found")
         else:
