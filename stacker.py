@@ -127,10 +127,12 @@ if __name__ == '__main__':
         else:
             print('Stacking ... ', end='', flush=True)  # If not verbose, still print this but without returning
 
-        with ProcessPoolExecutor(max_workers=max_processes) as executor:
-            executor.map(focus_stack_2,
-                         inputs,
-                         repeat(output_dir))
+        # with ProcessPoolExecutor(max_workers=max_processes) as executor:
+        #     executor.map(focus_stack_2,
+        #                  inputs,
+        #                  repeat(output_dir))
+
+        focus_stack_2(inputs, output_folder=output_dir, verbose=args['verbose'])
         print('Done.')
 
         end = time.time()

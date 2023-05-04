@@ -211,9 +211,7 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
                     f" --output={output_folder / (stack_name + '.tif')}",
                     *inputs
                     ],
-                   cwd=output_folder,
-                   stdout=stdout,
-                   stderr=subprocess.STDOUT)
+                   cwd=output_folder)
 
 
 #######################################################################################################################
