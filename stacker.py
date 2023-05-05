@@ -9,8 +9,9 @@ from scAnt.post_processing import *
 
 
 def str2list(s):
+    len(s)
     if not type(s) is str and isinstance(s, Iterable):
-        return s
+        return list(s)
     else:
         return s.split(',')
 
@@ -19,10 +20,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Focus stack images.')
 
-    parser.add_argument("-i", "--images",
-                        type=str2list,
-                        required=True,
-                        help="Path to input directory of images, or list of image paths")
+    parser.add_argument('images',
+                        metavar='P',
+                        type=str,
+                        nargs='+',
+                        help='Path to input directory of images, or list of image paths')
     parser.add_argument("-t", "--threshold",
                         type=float,
                         default=10.0,
@@ -36,17 +38,20 @@ if __name__ == '__main__':
     parser.add_argument("-v", "--verbose",
                         action='count',
                         default=0,
-                        help="Verbose mode [levels 0, 1 or 2]")
+                        help="Verbose mode [levels -v or -vv]")
     parser.add_argument("-b", "--single_stack",
                         action='store_true',
                         help="Consider the inputs as a SINGLE stack")
     parser.add_argument("-f", "--focus_check",
                         action='store_true',
-                        help="Check whether out-of-focus images should be discarded before stacking")
+                        help="Check the focus of all images before stacking to ignore blurry ones")
     parser.add_argument("-m", "--method",
                         type=str,
                         default="Default",
                         help="Blending method (Default, 1-Star, Masks)")
+    parser.add_argument("-g", "--gpu",
+                        action='store_true',
+                        help="Use GPU")
     parser.add_argument("-x", "--experimental",
                         action='store_true',
                         help="Use experimental stacking method")
@@ -63,7 +68,7 @@ if __name__ == '__main__':
                 f"  - Stacking using the "
               )
 
-    max_processes = max(1, cpu_count()-2)
+    max_processes = max(1, cpu_count()//2)
 
     inputs = files_io.get_paths(args['images'], force_single_stack=args['single_stack'], verbose=args['verbose'])
     output_dir = files_io.mk_outputdir(inputs, verbose=args['verbose'])
@@ -117,9 +122,10 @@ if __name__ == '__main__':
 
         nb_stacks = len(inputs)
         stacks_done = 0
+
         with ProcessPoolExecutor(max_workers=1) as executor:   # TODO - Maybe use more processes when not using the GPU?
             for r in as_completed(
-                    [executor.submit(focus_stack_2, s, output_dir) for s in inputs]
+                    [executor.submit(focus_stack_2, s, output_dir, args['gpu']) for s in inputs]
             ):
                 stacks_done += 1
                 if args['verbose'] == 1:

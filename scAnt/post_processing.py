@@ -134,7 +134,7 @@ def focus_check_multi(paths_list, threshold, display=False, verbose=0):
     return sharp, blurry
 
 
-def alignment(images_paths, output_folder, verbose=0):
+def alignment(images_paths, output_folder, verbose=0, use_GPU=False):
     """
     Aligns a list of images using Hugin, and saves the files to disk
     """
@@ -156,7 +156,7 @@ def alignment(images_paths, output_folder, verbose=0):
                     "-c 50",
                     # "--use-given-order",
                     # "--align-to-first",
-                    # "--gpu",              # Should speed up the process - TODO: try it
+                    f"{' --gpu' if use_GPU else ''}"    # TODO - try it
                     f"-a {prefix}_ALIGNED",
                     *inputs
                     ],
@@ -195,7 +195,7 @@ def fuse(images_paths, output_folder, verbose=0):
                    stderr=subprocess.STDOUT)
 
 import os
-def focus_stack_2(images_paths, output_folder, verbose=0):
+def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False):
     inputs = [p.as_posix() for p in images_paths]
 
     stack_name = commonprefix([file.stem for file in images_paths]).replace('_step', '')
@@ -209,15 +209,14 @@ def focus_stack_2(images_paths, output_folder, verbose=0):
         stdout = subprocess.DEVNULL
 
     # subprocess.run([focusstack_path.as_posix(),
-    #                 " --nocrop",
-    #                 " --no-opencl"
+    #                 f"{' --no-opencl' if not use_GPU else ''}"
     #                 f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
     #                 *inputs
     #                 ],
     #                cwd=output_folder)
 
     os.system(f"{focusstack_path.as_posix()}"
-              f" --nocrop"
+              f"{' --no-opencl' if not use_GPU else ''}"
               f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
               f" {' '.join(inputs)}")
 
