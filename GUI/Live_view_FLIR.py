@@ -1,6 +1,7 @@
 import cv2
 import platform
 import numpy as np
+from pathlib import Path
 import time
 
 # as the PySpin class seems to be written differently for the windows library it needs to be imported as follows:
@@ -19,7 +20,7 @@ class customFLIR():
 
         # Get current library version
         version = self.system.GetLibraryVersion()
-        print('Spinnaker library version: %d.%d.%d.%d' % (version.major, version.minor, version.type, version.build))
+        print(f"Spinnaker library version: {'.'.join([version.major, version.minor, version.type, version.build])}")
 
         # Retrieve list of cameras from the system
         self.cam_list = self.system.GetCameras()
@@ -37,14 +38,14 @@ class customFLIR():
             if PySpin.IsAvailable(node_device_serial_number) and PySpin.IsReadable(node_device_serial_number):
                 self.device_names.append([node_device_model.GetValue(), node_device_serial_number.GetValue()])
 
-            print("Detected", self.device_names[id][0], "with Serial ID", self.device_names[id][1])
+            print(f"Detected {self.device_names[id][0]} with Serial ID{self.device_names[id][1]}")
 
         # by default, use the first camera in the retrieved list
         self.cam = self.cam_list[0]
 
         num_cameras = self.cam_list.GetSize()
 
-        print('Number of cameras detected: %d' % num_cameras)
+        print(f'Number of cameras detected: {num_cameras}')
 
         # Finish if there are no cameras
         if num_cameras == 0:
@@ -56,7 +57,6 @@ class customFLIR():
 
             print('Not enough cameras!')
             input('Done! Press Enter to exit...')
-            return False
 
         print("\nExecute CustomFLIR.initialise_camera and pass the number of the listed camera, "
               "in case more than one has been detected!\n")
@@ -125,11 +125,11 @@ class customFLIR():
             # 200751  # with grey backdrop and half illumination
             exposure_time_to_set = min(self.cam.ExposureTime.GetMax(), exposure_time_to_set)
             self.cam.ExposureTime.SetValue(exposure_time_to_set)
-            print('Shutter time set to %s us...\n' % exposure_time_to_set)
+            print(f'Shutter time set to {exposure_time_to_set:.0f} us...\n')
 
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex)
+            print(f'Error: {ex}')
             result = False
 
         return result
@@ -180,7 +180,7 @@ class customFLIR():
             print('Automatic exposure enabled...')
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex)
+            print(f'Error: {ex}')
             result = False
 
         return result
@@ -212,7 +212,7 @@ class customFLIR():
             print('Automatic gain enabled...')
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex)
+            print(f'Error: {ex}')
             result = False
 
         return result
@@ -249,7 +249,7 @@ class customFLIR():
                 print('Device control information not available.')
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex.message)
+            print(f'Error: {ex.message}')
             return False
 
         return result
@@ -273,7 +273,7 @@ class customFLIR():
                 image_result = self.cam.GetNextImage()
 
                 if image_result.IsIncomplete():
-                    print('Image incomplete with image status %d...' % image_result.GetImageStatus())
+                    print(f'Image incomplete with image status {image_result.GetImageStatus()}...')
 
                 else:
                     # Print image information
@@ -295,30 +295,30 @@ class customFLIR():
                     image_result.Release()
 
             except PySpin.SpinnakerException as ex:
-                print('Error: %s' % ex)
+                print(f'Error: {ex}')
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex)
+            print(f'Error: {ex}')
 
         return resized
 
-    def capture_image(self, img_name="example.tif", return_image=False):
+    def capture_image(self, img_path="example.tif", return_image=False):
         try:
             try:
                 # Retrieve next received image and ensure image completion
                 image_result = self.cam.GetNextImage()
 
                 if image_result.IsIncomplete():
-                    print('Image incomplete with image status %d...' % image_result.GetImageStatus())
+                    print(f'Image incomplete with image status {image_result.GetImageStatus()}...')
 
                 else:
                     # Print image information
                     width = image_result.GetWidth()
                     height = image_result.GetHeight()
-                    print('Captured Image with width = %d, height = %d' % (width, height))
+                    print(f'Captured Image with width={width}, height={height}')
 
                     # Create a unique filename
-                    filename = img_name
+                    filename = Path(img_path)
 
                     # NEW
                     if return_image:
@@ -327,17 +327,17 @@ class customFLIR():
                         # Save RAW image
                         image_result.Save(filename)
 
-                        print('Image saved as %s' % filename)
+                        print(f'Image saved as {filename}')
 
                 # Release image
                 image_result.Release()
 
 
             except PySpin.SpinnakerException as ex:
-                print('Error: %s' % ex)
+                print(f'Error: {ex}')
 
         except PySpin.SpinnakerException as ex:
-            print('Error: %s' % ex)
+            print(f'Error: {ex}')
 
     def exit_cam(self):
         """ ###  End acquisition ### """
@@ -452,7 +452,7 @@ if __name__ == '__main__':
 
         cv2.waitKey(1)
 
-    FLIR.capture_image(img_name="testy_mac_test_face.tif")
+    FLIR.capture_image(img_path="testy_mac_test_face.tif")
 
     # release camera
     FLIR.exit_cam()

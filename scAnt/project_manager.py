@@ -62,12 +62,13 @@ def read_config_file(path):
 
 
 def write_config_file(content, path):
-    with open(path.joinpath(content["general"]["project_name"] + "_config.yaml"), "w") as f:
+    file_name = f'{content["general"]["project_name"]}_config.yaml'
+    with open(path / file_name, "w") as f:
         yaml.dump(content, f, default_flow_style=False, sort_keys=False)
 
 
 if __name__ == '__main__':
-    config = read_config_file(Path.cwd().parent.joinpath("example_config.yaml"))
+    root_folder = Path.cwd().parent
+    config = read_config_file(root_folder / "example_config.yaml")
     print(config)
-
-    write_config_file(content=config, path=Path.cwd().parent)
+    write_config_file(content=config, path=root_folder)

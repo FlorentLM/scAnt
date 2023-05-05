@@ -1,15 +1,21 @@
 # TODO - add support for gphoto on Linux and macOS
 
-from os.path import join, sep
 import subprocess
 from pathlib import Path
 from time import sleep
+# from scAnt.files_io import lookup_bin
 
 # Update with the path to CameraControlCmd.exe file.
-digi_cam_path = join('C:' + sep, 'Program Files (x86)', 'digiCamControl')
-digi_cam_cmd_path = join(digi_cam_path, 'CameraControlCmd.exe')
-digi_cam_app_path = join(digi_cam_path, 'CameraControl.exe')
-digi_cam_remote_path = join(digi_cam_path, 'CameraControlRemoteCmd.exe')
+digicam_install_path = Path('C:\Program Files (x86)\digiCamControl')   # TODO use lookup_bin instead
+
+digicam_cmd_bin = 'CameraControlCmd.exe'
+digicam_cmd_path = digicam_install_path / digicam_cmd_bin
+
+digicam_app_bin = 'CameraControl.exe'
+digicam_app_path = digicam_install_path / digicam_app_bin
+
+digicam_remote_bin = 'CameraControlRemoteCmd.exe'
+digicam_remote_path = digicam_install_path / digicam_remote_bin
 
 
 class customDSLR():
@@ -17,8 +23,10 @@ class customDSLR():
     def __init__(self):
 
         # get camera info. If none is connected, exit the program
-        p = subprocess.Popen('"' + str(digi_cam_cmd_path) + '" /list cameras',
-                             stdout=subprocess.PIPE, universal_newlines=True, shell=False)
+        p = subprocess.Popen(f"{digicam_cmd_path} /list cameras",
+                             stdout=subprocess.PIPE,
+                             universal_newlines=True,
+                             shell=False)
         (output, err) = p.communicate()
         try:
             self.cameras = output.split("New Camera is connected ! Driver :")[1:]
@@ -33,8 +41,8 @@ class customDSLR():
                 self.camera_model = None
                 return
             else:
-                print("Detected DSLR cameras:", *self.cameras, sep=' ')
-                print("Using:", self.camera_model)
+                print(f"Detected DSLR cameras: {' '.join(self.cameras)}")
+                print(f"Using: {self.camera_model}")
         except IndexError:
             print("No DSLR detected!")
             return
@@ -54,25 +62,27 @@ class customDSLR():
 
     def initialise_camera(self):
         # launch DigiCamControl
-        subprocess.Popen('"' + str(digi_cam_app_path) + '"')
+        subprocess.Popen(digicam_app_path)
 
         # check for instance of CameraControl.exe for 20 seconds until timeout
         for i in range(20):
             sleep(1)
-            sp = subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c list sessions",
-                                  stdout=subprocess.PIPE, universal_newlines=True, shell=False)
+            sp = subprocess.Popen(f"{digicam_remote_path} /c list sessions",
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  shell=False)
             (output, err) = sp.communicate()
             message = str(output).split(":")[-1].split("\n")[0]
             if message == "no camera is connected":
-                print("Waiting for instance of CameraControl.exe to launch...")
+                print(f"Waiting for instance of {digicam_app_bin} to launch...")
             else:
                 print(message)
-                print("CameraControl.exe launched successfully!")
+                print(f"{digicam_app_bin} launched successfully!")
                 sleep(2)
                 break
 
             if i == 19:
-                print("Timeout! No response from Camera or CameraControl.exe!")
+                print(f"Timeout! No response from camera or {digicam_app_bin}!")
                 return
 
         # iso
@@ -95,8 +105,10 @@ class customDSLR():
 
     def get_all_settings(self, key):
         sleep(0.2)  # prevents issuing to many commands at a time
-        sp = subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c list " + key,
-                              stdout=subprocess.PIPE, universal_newlines=True, shell=False)
+        sp = subprocess.Popen(f"{digicam_remote_path} /c list {key}",
+                              stdout=subprocess.PIPE,
+                              universal_newlines=True,
+                              shell=False)
         (output, err) = sp.communicate()
         raw_vals = (str(output).split("[")[-1].split("]")[0].split(","))
         all_vals = []
@@ -105,46 +117,57 @@ class customDSLR():
         return all_vals
 
     def set_shutterspeed(self, shutterspeed="1/100"):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c set shutterspeed " + shutterspeed,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c set shutterspeed {shutterspeed}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def set_iso(self, iso="500"):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c set iso " + iso,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c set iso {iso}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def set_aperture(self, aperture="5.6"):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c set aperture " + aperture,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c set aperture {aperture}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def set_whitebalance(self, whitebalance="Auto"):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c set whitebalance " + whitebalance,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c set whitebalance {whitebalance}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def set_compression(self, compression):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c set compressionsetting " + compression,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c set compressionsetting {compression}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def start_live_view(self):
         # open live view window
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c do LiveViewWnd_Show",
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c do LiveViewWnd_Show",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def stop_live_view(self):
         # close live view window
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + " /c do LiveViewWnd_Hide",
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.Popen(f"{digicam_remote_path} /c do LiveViewWnd_Hide",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
-    def capture_image(self, img_name="example.jpg"):
-        subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + ' /c CaptureNoAf "' + img_name + '"',
-                         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    def capture_image(self, img_name=Path("example.jpg")):
+        img_name = Path(img_name)   # Just in case
+        subprocess.Popen(f"{digicam_remote_path} /c CaptureNoAf {img_name}",
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.STDOUT)
 
     def get_current_setting(self, setting):
         sleep(0.2)  # prevents issuing to many commands at a time
-        sp = subprocess.Popen('"' + str(digi_cam_remote_path) + '"' + ' /c get ' + setting,
-                              stdout=subprocess.PIPE, universal_newlines=True, shell=False)
+        sp = subprocess.Popen(f"{digicam_remote_path} /c get {setting}",
+                              stdout=subprocess.PIPE,
+                              universal_newlines=True,
+                              shell=False)
         (output, err) = sp.communicate()
         val = output.split('"')[1]
-        print("Current " + setting + " : " + val)
+        print(f"Current {setting}: {val}")
         return val
 
 
@@ -158,7 +181,7 @@ if __name__ == '__main__':
     compression = "JPEG (FINE)"
 
     # where to save images
-    current_folder = str(Path.cwd().parent)
+    current_folder = Path.cwd().parent
 
     # calling the class for the first time is meant to aid in finding attached cameras.
     # the name of the connected camera is then stored in DSLR.camera_model
@@ -190,5 +213,6 @@ if __name__ == '__main__':
         DSLR.set_iso(iso_val)
         sleep(2)
         # wait for setting to be applied before sending next capture command
-        DSLR.capture_image(current_folder + "\\test_image_iso_" + iso_val + ".jpg")
+        img_name = f"test_image_iso_{iso_val}.jpg"
+        DSLR.capture_image(current_folder / img_name)
         sleep(1)

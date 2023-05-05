@@ -193,7 +193,7 @@ class ScannerController:
                     img_name = self.outputFolder + "x_" + self.correctName(posX) + "_y_" + self.correctName(
                         posY) + "_step_" + self.correctName(posZ) + "_.tif"
 
-                    self.cam.capture_image(img_name=img_name)
+                    self.cam.capture_image(img_path=img_name)
                     self.progress = self.getProgress()
 
                 self.completedStacks += 1
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     scAnt.moveToPosition(stepper=2, pos=-20000)
 
     # capture image, using custom FLIR scripts
-    scAnt.cam.capture_image(img_name="testy_mac_testface.tif")
+    scAnt.cam.capture_image(img_path="testy_mac_testface.tif")
 
     # define output folder
     scAnt.outputFolder = Path.cwd()

@@ -303,11 +303,11 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.showExposure = False
 
         # Scanner output setup
-        self.output_location = str(Path.cwd())
+        self.output_location = Path.cwd()
         self.update_output_location()
         self.ui.pushButton_browseOutput.pressed.connect(self.set_output_location)
 
-        self.output_location_folder = Path(self.output_location).joinpath(self.ui.lineEdit_projectName.text())
+        self.output_location_folder = self.output_location / self.ui.lineEdit_projectName.text()
 
         # processing
         self.stackImages = False
@@ -694,19 +694,17 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.create_output_folders()
         # create unique filename
         file_name = f"{now.strftime('%Y-%m-%d_%H-%M-%S-%MS')}_{self.file_format}"
-        file_path = str(self.output_location_folder.joinpath(file_name))
+        file_path = self.output_location_folder / file_name
         self.cam.capture_image(file_path)
         self.log_info(f"Captured {file_path}")
 
     def create_output_folders(self):
-        self.output_location_folder = Path(self.output_location).joinpath(self.ui.lineEdit_projectName.text())
-        if not os.path.exists(self.output_location_folder):
-            os.makedirs(self.output_location_folder)
-            self.log_info(f"Created folder at: {self.output_location_folder}")
-        if not os.path.exists(self.output_location_folder.joinpath("RAW")):
-            os.makedirs(self.output_location_folder.joinpath("RAW"))
-        if not os.path.exists(self.output_location_folder.joinpath("stacked")):
-            os.makedirs(self.output_location_folder.joinpath("stacked"))
+        self.output_location_folder = self.output_location / self.ui.lineEdit_projectName.text()
+        raw_folder = self.output_location_folder / "RAW"
+        stacked_folder = self.output_location_folder / "stacked"
+
+        raw_folder.mkdir(parents=True, exist_ok=True)
+        stacked_folder.mkdir(parents=True, exist_ok=True)
 
     """
     Scanner Setup
@@ -720,16 +718,17 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(f"scAnt V 1.2  :  {name}")
 
     def set_output_location(self):
-        new_location = QtWidgets.QFileDialog.getExistingDirectory(self, "Choose output location",
-                                                                  str(Path.cwd()))
+        new_location = QtWidgets.QFileDialog.getExistingDirectory(self,
+                                                                  "Choose output location",
+                                                                  Path.cwd().as_posix())
         if new_location:
-            self.output_location = new_location
+            self.output_location = Path(rf"{new_location}")
 
         self.update_output_location()
 
     def loadConfig(self):
         file = QtWidgets.QFileDialog.getOpenFileName(self, "Load existing config file",
-                                                     str(Path.cwd()), "config file (*.yaml)")
+                                                     Path.cwd().as_posix(), "config file (*.yaml)")
         config_location = file[0]
         if config_location:
             # if a file has been selected, convert it into a Path object
@@ -884,13 +883,13 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                   "exif_data": self.exif}
 
         self.create_output_folders()
-        ymlRW.write_config_file(config, Path(self.output_location_folder))
+        ymlRW.write_config_file(config, self.output_location_folder)
         self.log_info("Exported config_file successfully!")
 
     def update_output_location(self):
-        self.ui.lineEdit_outputLocation.setText(self.output_location)
+        self.ui.lineEdit_outputLocation.setText(self.output_location.as_posix())
 
-    def enableStacking(self, set_to=False):
+    def enableStacking(self):
         self.stackImages = self.ui.checkBox_stackImages.isChecked()
 
         self.ui.label_stackingMethod.setEnabled(self.stackImages)
@@ -900,7 +899,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.ui.label_maskImages.setEnabled(self.stackImages)
         self.ui.checkBox_maskImages.setEnabled(self.stackImages)
 
-    def enableMasking(self, set_to=False):
+    def enableMasking(self):
         self.maskImages = self.ui.checkBox_maskImages.isChecked()
 
         self.ui.label_thresholdMasking.setEnabled(self.maskImages)
@@ -1040,9 +1039,9 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         enableInputs = True
         if self.scanInProgress:
             enableInputs = False
-            print("disabling inputs!")
+            print("Disabling inputs!")
         else:
-            print("enabling inputs!")
+            print("Enabling inputs!")
         # disable panels that could interfere with the scan
         # stepper motor inputs
         self.ui.horizontalSlider_xAxis.setEnabled(enableInputs)
@@ -1151,7 +1150,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                 progress_callback.emit(self.progress)
 
                 # create list of images associated with each stack for simultaneous processing
-                stackName = []
+                current_stack = []
 
                 for posZ in self.scanner.scan_pos[2]:
                     save_time = time.time()
@@ -1159,19 +1158,22 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                         return
 
                     self.scanner.moveToPosition(2, posZ)
+
                     # to follow the naming convention when focus stacking
-                    img_name = str(self.output_location_folder.joinpath("RAW",
-                                                                        "_x_" + self.scanner.correctName(posX)
-                                                                        + "_y_" + self.scanner.correctName(posY)
-                                                                        + "_step_" + self.scanner.correctName(
-                                                                            posZ) + "_" + self.file_format))
-                    stackName.append(img_name)
+                    image_name = f"RAW_" \
+                                 f"x_{self.scanner.correctName(posX)}_" \
+                                 f"y_{self.scanner.correctName(posY)}_" \
+                                 f"step_{self.scanner.correctName(posZ)}_" \
+                                 f"{self.file_format}"
+
+                    img_path = self.output_location_folder / image_name
+                    current_stack.append(img_path)
 
                     if self.camera_type == "FLIR":
-                        captured_image = self.cam.capture_image(img_name, return_image=True)
-                        self.FLIR_image_queue.append([captured_image, img_name])
+                        captured_image = self.cam.capture_image(img_path, return_image=True)
+                        self.FLIR_image_queue.append([captured_image, img_path])
                     if self.camera_type == "DSLR":
-                        self.cam.capture_image(img_name)
+                        self.cam.capture_image(img_path)
                         # wait for the camera to capture the image before moving further
                         time.sleep(1)
                     self.images_taken += 1
@@ -1179,13 +1181,13 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                     self.posZ = posZ
                     progress_callback.emit(self.progress)
 
-                    print('Time to write image to device:', time.time() - save_time, "seconds")
+                    print(f'Time to write image to device: {time.time() - save_time:.2f} seconds')
 
                 if self.camera_type == "DSLR":
                     # TODO this is a temporary fix to ensure images are fully saved to the computer before stacking
                     time.sleep(2)
 
-                self.stackList.append(stackName)
+                self.stackList.append(current_stack)
 
                 self.scanner.completedStacks += 1
             self.scanner.completedRotations += 1
@@ -1255,6 +1257,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         print("\nSTACKING: \n\n", stack)
         # using try / except to continue stacking with other images in case an error occurs
         try:
+            # TODO - re-implement this
             stacked_output = stack_images(input_paths=stack,
                                           threshold=self.stackFocusThreshold,
                                           sharpen=self.stackSharpen,
@@ -1267,7 +1270,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                             min_bl=self.maskArtifactSizeBlack, min_wh=self.maskArtifactSizeWhite, create_cutout=True)
 
                 if self.createCutout:
-                    write_exif_to_img(img_path=str(stacked_output[0])[:-4] + '_cutout.jpg', custom_exif_dict=self.exif)
+                    write_exif_to_img(img_path=f'{stacked_output[0].stem}_cutout.jpg', custom_exif_dict=self.exif)
 
         except Exception as e:
             print(e)
