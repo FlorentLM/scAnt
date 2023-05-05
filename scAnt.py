@@ -143,7 +143,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
             self.cam.initialise_camera(select_cam=0)
             # now retrieve the name of all found FLIR cameras and add them to the camera selection
             for cam in self.cam.device_names:
-                self.ui.comboBox_selectCamera.addItem(str(cam[0] + " ID: " + cam[1]))
+                self.ui.comboBox_selectCamera.addItem(f"{cam[0]} ID: {cam[1]}")
             self.camera_type = "FLIR"
             # cam.device_names contains both model and serial number
             self.camera_model = self.cam.device_names[0][0]
@@ -472,7 +472,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.disable_FLIR_inputs()
         self.disable_DSLR_inputs()
         selected_camera = self.ui.comboBox_selectCamera.currentText()
-        self.log_info("Selected camera: " + str(selected_camera))
+        self.log_info(f"Selected camera: {selected_camera}")
 
         # stop the live view if currently in use
         if self.liveView:
@@ -486,10 +486,13 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         # new camera -> FLIR
         if selected_camera.split(" ")[0] == "Blackfly":
             for ID, FLIR in enumerate(self.FLIR.device_names):
-                if self.ui.comboBox_selectCamera.currentText() == str(FLIR[0] + " ID: " + FLIR[1]):
+
+                cam_text = f"{FLIR[0]} ID: {FLIR[1]}"
+
+                if self.ui.comboBox_selectCamera.currentText() == cam_text:
                     self.cam = self.FLIR
                     self.cam.initialise_camera(select_cam=ID)
-                    self.log_info("Camera in use: " + str(FLIR[0] + " ID: " + FLIR[1]))
+                    self.log_info(f"Camera in use: {cam_text}")
                     self.camera_type = "FLIR"
                     self.begin_live_view()
                     self.camera_model = self.FLIR.device_names[ID][0]
@@ -534,7 +537,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.ui.doubleSpinBox_exposureTime.setEnabled(True)
         value = self.ui.doubleSpinBox_exposureTime.value()
         if value is not None:
-            self.log_info("Exposure time set to " + str(value) + " [us]")
+            self.log_info(f"Exposure time set to {value:.0f} [us]")
             self.cam.configure_exposure(float(value))
 
     def check_gain(self):
@@ -554,27 +557,27 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
         self.ui.doubleSpinBox_gainLevel.setEnabled(True)
         value = self.ui.doubleSpinBox_gainLevel.value()
         if value is not None:
-            self.log_info("Gain level set to " + str(value) + " [dB]")
+            self.log_info(f"Gain level set to {value:.2f} [dB]")
             self.cam.set_gain(float(value))
 
     def set_gamma(self):
         value = self.ui.doubleSpinBox_gamma.value()
         if value is not None:
-            self.log_info("Gain set to " + str(value))
+            self.log_info(f"Gain set to {value:.2f}")
             self.cam.set_gamma(float(value))
 
     def set_balance_ratio(self):
         value_red = self.ui.doubleSpinBox_balanceRatioRed.value()
         value_blue = self.ui.doubleSpinBox_balanceRatioBlue.value()
         if value_red is not None and value_blue is not None:
-            self.log_info("White balance ratio set to " + str(value_red) + " and " + str(value_blue))
+            self.log_info(f"White balance ratio set to {value_red:.2f} and {value_blue:.2f}")
             self.cam.set_white_balance(float(value_red), float(value_blue))
 
     def set_black_level(self):
         # TODO -> not yet functional, error thrown from PySpin
         value = self.ui.doubleSpinBox_blackLevel.value()
         if value is not None:
-            self.log_info("Gain set to " + str(value))
+            self.log_info(f"Gain set to {value:.2f}")
             self.cam.set_black_level(float(value))
 
     def update_live_view(self, progress_callback):
@@ -598,34 +601,34 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                 self.ui.label_liveView.setAlignment(QtCore.Qt.AlignCenter)
             except AttributeError:
                 print("Live view ended")
-        self.ui.label_liveView.setText("Live view disabled.")
+        self.ui.label_liveView.setText("Live view disabled")
 
     # DSLR settings
 
     def set_shutterspeed(self):
         if not self.DSLR_read_out:
             self.cam.set_shutterspeed(self.ui.comboBox_shutterSpeed.currentText())
-            self.log_info("Set shutter speed to " + self.ui.comboBox_shutterSpeed.currentText())
+            self.log_info(f"Set shutter speed to {self.ui.comboBox_shutterSpeed.currentText()}")
 
     def set_aperture(self):
         if not self.DSLR_read_out:
             self.cam.set_aperture(self.ui.comboBox_aperture.currentText())
-            self.log_info("Set aperture to " + self.ui.comboBox_aperture.currentText())
+            self.log_info(f"Set aperture to {self.ui.comboBox_aperture.currentText()}")
 
     def set_iso(self):
         if not self.DSLR_read_out:
             self.cam.set_iso(self.ui.comboBox_iso.currentText())
-            self.log_info("Set iso to " + self.ui.comboBox_iso.currentText())
+            self.log_info(f"Set iso to {self.ui.comboBox_iso.currentText()}")
 
     def set_whitebalance(self):
         if not self.DSLR_read_out:
             self.cam.set_whitebalance(self.ui.comboBox_whiteBalance.currentText())
-            self.log_info("Set white balance to " + self.ui.comboBox_whiteBalance.currentText())
+            self.log_info(f"Set white balance to {self.ui.comboBox_whiteBalance.currentText()}")
 
     def set_compression(self):
         if not self.DSLR_read_out:
             self.cam.set_compression(self.ui.comboBox_compression.currentText())
-            self.log_info("Set compression to " + self.ui.comboBox_compression.currentText())
+            self.log_info(f"Set compression to {self.ui.comboBox_compression.currentText()}")
 
     def get_DSLR_file_ending(self):
         # first get the current compression setting
@@ -648,12 +651,12 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
 
     def log_info(self, info):
         now = datetime.datetime.now()
-        self.ui.listWidget_log.addItem(now.strftime("%H:%M:%S") + " [INFO] " + info)
+        self.ui.listWidget_log.addItem(f"{now.strftime('%H:%M:%S')} [INFO] {info}")
         self.ui.listWidget_log.sortItems(QtCore.Qt.DescendingOrder)
 
     def log_warning(self, warning):
         now = datetime.datetime.now()
-        self.ui.listWidget_log.addItem(now.strftime("%H:%M:%S") + " [ERROR] " + warning)
+        self.ui.listWidget_log.addItem(f"{now.strftime('%H:%M:%S')} [ERROR] {warning}")
         self.ui.listWidget_log.sortItems(QtCore.Qt.DescendingOrder)
 
     def thread_complete(self):
@@ -690,15 +693,16 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
 
         self.create_output_folders()
         # create unique filename
-        file_name = str(self.output_location_folder.joinpath(now.strftime("%Y-%m-%d_%H-%M-%S-%MS_" + self.file_format)))
-        self.cam.capture_image(file_name)
-        self.log_info("Captured " + file_name)
+        file_name = f"{now.strftime('%Y-%m-%d_%H-%M-%S-%MS')}_{self.file_format}"
+        file_path = str(self.output_location_folder.joinpath(file_name))
+        self.cam.capture_image(file_path)
+        self.log_info(f"Captured {file_path}")
 
     def create_output_folders(self):
         self.output_location_folder = Path(self.output_location).joinpath(self.ui.lineEdit_projectName.text())
         if not os.path.exists(self.output_location_folder):
             os.makedirs(self.output_location_folder)
-            self.log_info("Created folder at:" + str(self.output_location_folder))
+            self.log_info(f"Created folder at: {self.output_location_folder}")
         if not os.path.exists(self.output_location_folder.joinpath("RAW")):
             os.makedirs(self.output_location_folder.joinpath("RAW"))
         if not os.path.exists(self.output_location_folder.joinpath("stacked")):
@@ -713,7 +717,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
 
     def set_project_title(self):
         name = self.ui.lineEdit_projectName.text()
-        self.setWindowTitle("scAnt V 1.2  :  " + name)
+        self.setWindowTitle(f"scAnt V 1.2  :  {name}")
 
     def set_output_location(self):
         new_location = QtWidgets.QFileDialog.getExistingDirectory(self, "Choose output location",
@@ -735,7 +739,7 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
             # check if the camera type in the config file matches the connected/selected camera type
             if config["general"]["camera_type"] != self.camera_type:
                 self.log_warning("The selected config file was generated for a different camera type!")
-                QtWidgets.QMessageBox.critical(self, "Failed to load " + str(config_location.name),
+                QtWidgets.QMessageBox.critical(self, f"Failed to load {config_location.name}",
                                                "The selected config file was generated for a different camera type!")
                 return
 
@@ -1220,10 +1224,10 @@ class scAnt_mainWindow(QtWidgets.QMainWindow):
                         # write image to drive with pre-determined name
                         try:
                             img[0].Save(img[1])
-                            print('Image saved as %s' % img[1])
+                            print(f"Image saved as {img[1]}")
                             # Release image
                         except Exception as error_save_FLIR_img:
-                            print("Failed to save:", img[1])
+                            print(f"Failed to save {img[1]}")
                             print(error_save_FLIR_img)
                         img[0].Release()
                         # remove entries from queue once done
