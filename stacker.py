@@ -58,6 +58,21 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())
 
+    # imgs = str2list('F:\scans\cataglyphis_velox_1')
+    #
+    # args = {
+    #     "images": imgs,
+    #     "threshold": 10.0,
+    #     "sharpen": False,
+    #     "display": False,
+    #     "verbose": 2,
+    #     "single_stack": False,
+    #     "focus_check": False,
+    #     "method": "Default",
+    #     "gpu": True,
+    #     "experimental": True,
+    # }
+
     if args['verbose'] > 0:
         print("\n[INFO]:\n",
                 f"  - Verbosity level: {args['verbose']}\n",
@@ -65,7 +80,7 @@ if __name__ == '__main__':
                 f"  - {'Previews' if args['display'] else 'NO previews'} will be displayed during focus check\n",
                 f"  - Output images {'will be' if args['sharpen'] else 'will NOT be'} additionally sharpened\n",
                 f"  - Images in target directory {'will be treated as a single stack' if args['single_stack'] else 'will be processed stack by stack'}\n",
-                f"  - Stacking using the "
+                f"  - Stacking using the {'GPU' if args['gpu'] else 'CPU'}"
               )
 
     max_processes = max(1, cpu_count()//2)
@@ -125,7 +140,7 @@ if __name__ == '__main__':
 
         with ProcessPoolExecutor(max_workers=1) as executor:   # TODO - Maybe use more processes when not using the GPU?
             for r in as_completed(
-                    [executor.submit(focus_stack_2, s, output_dir, args['gpu']) for s in inputs]
+                    [executor.submit(focus_stack_2, s, output_dir, args['verbose'], args['gpu']) for s in inputs]
             ):
                 stacks_done += 1
                 if args['verbose'] == 1:
