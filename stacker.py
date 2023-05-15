@@ -3,17 +3,8 @@ import time
 from os import cpu_count
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from collections.abc import Iterable
 from scAnt import files_io
 from scAnt.post_processing import *
-
-
-def str2list(s):
-    len(s)
-    if not type(s) is str and isinstance(s, Iterable):
-        return list(s)
-    else:
-        return s.split(',')
 
 
 if __name__ == '__main__':
@@ -57,21 +48,6 @@ if __name__ == '__main__':
                         help="Use experimental stacking method")
 
     args = vars(parser.parse_args())
-
-    # imgs = str2list('F:\scans\cataglyphis_velox_1')
-    #
-    # args = {
-    #     "images": imgs,
-    #     "threshold": 10.0,
-    #     "sharpen": False,
-    #     "display": False,
-    #     "verbose": 2,
-    #     "single_stack": False,
-    #     "focus_check": False,
-    #     "method": "Default",
-    #     "gpu": True,
-    #     "experimental": True,
-    # }
 
     if args['verbose'] > 0:
         print("\n[INFO]:\n",
@@ -143,7 +119,7 @@ if __name__ == '__main__':
                     [executor.submit(focus_stack_2, s, output_dir, args['verbose'], args['gpu']) for s in inputs]
             ):
                 stacks_done += 1
-                if args['verbose'] == 1:
+                if args['verbose'] >= 1:
                     print(f"Processed stack [{stacks_done}/{nb_stacks}]")
 
         print('Done.')
@@ -166,7 +142,7 @@ if __name__ == '__main__':
                     [executor.submit(alignment, s, output_dir) for s in inputs]
             ):
                 stacks_done += 1
-                if args['verbose'] == 1:
+                if args['verbose'] >= 1:
                     print(f"Aligned stack [{stacks_done}/{nb_stacks}]")
 
         print('Done.')
@@ -187,7 +163,7 @@ if __name__ == '__main__':
                     [executor.submit(fuse, s, output_dir) for s in inputs]
             ):
                 stacks_done += 1
-                if args['verbose'] == 1:
+                if args['verbose'] >= 1:
                     print(f"Fused stack [{stacks_done}/{nb_stacks}]")
         print('Done.')
 
