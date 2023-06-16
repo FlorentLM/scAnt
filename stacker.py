@@ -49,6 +49,21 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())
 
+    # imgs = str2list('F:\scans\cataglyphis_velox_1')
+    #
+    # args = {
+    #     "images": imgs,
+    #     "threshold": 10.0,
+    #     "sharpen": False,
+    #     "display": False,
+    #     "verbose": 2,
+    #     "single_stack": False,
+    #     "focus_check": False,
+    #     "method": "Default",
+    #     "gpu": True,
+    #     "experimental": True,
+    # }
+
     if args['verbose'] > 0:
         print("\n[INFO]:\n",
                 f"  - Verbosity level: {args['verbose']}\n",
