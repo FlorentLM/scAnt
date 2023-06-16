@@ -63,47 +63,51 @@ def write_exif_to_img(img_path, custom_exif_dict, verbose=0):
     process = subprocess.Popen(complete_command)
     process.wait()
 
-def invert_masks(in_path):
-    out_path = in_path / 'inverted'
+def invert_masks(in_path, ext='png'):
+    ext = ext.strip(".")
 
-    nb_masks = len((list(in_path.glob('*.png'))))
+    out_path = in_path / 'inverted'
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    nb_masks = len((list(in_path.glob(f'*.{ext}'))))
 
     i = 0
-    for mask_file in in_path.glob('*.png'):
+    for mask_file in in_path.glob(f'*.{ext}'):
         print(f'{i + 1}/{nb_masks}')
 
         input_mask = cv2.imread(mask_file.as_posix())
         mask = np.array(~input_mask.astype(bool) * 255, dtype=np.uint8)
 
-        filepath = out_path / f'{mask_file.stem}.png'.replace('__', '_')
+        filepath = out_path / f'{mask_file.stem}.{ext}'.replace('__', '_')
 
         cv2.imwrite(filepath.as_posix(), mask)
         i += 1
     print('Done.')
 
 
-def fix_metadata(path, cfg_path=None):
+def fix_metadata(path, cfg_path=None, ext='tif'):
+    ext = ext.strip(".")
+
     if cfg_path is None:
         cfg_path = path.parent / f'{path.stem}_config.yaml'
 
     with open(cfg_path, 'r') as file:
         config = yaml.safe_load(file)
 
-    nb_files = len((list(path.glob('*.tif'))))
+    nb_files = len((list(path.glob(f'*.{ext}'))))
 
     i = 0
-    for img in path.glob('*.tif'):
+    for img in path.glob(f'*.{ext}'):
         print(f'{i + 1}/{nb_files}')
 
         write_exif_to_img(img, config['exif_data'])
         i += 1
     print('Done.')
 
-
 ##
 
 path = Path('F:\scans\messor_2')
-path = Path('C:\\Users\\flolm\\Desktop')
+in_path = Path('C:\\Users\\flolm\\Desktop\\images')
 
 # fix_metadata(path)
 # invert_masks(in_path)
