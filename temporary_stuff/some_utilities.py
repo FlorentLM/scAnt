@@ -106,9 +106,8 @@ def fix_metadata(path, cfg_path=None, ext='tif'):
 
 ##
 
-path = Path('F:\scans\messor_2')
-in_path = Path('C:\\Users\\flolm\\Desktop\\images')
+path = Path('F:\scans\messor_2\stacked')
 
-# fix_metadata(path)
+fix_metadata(path, cfg_path=path.parent)
 # invert_masks(in_path)
 

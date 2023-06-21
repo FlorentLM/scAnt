@@ -217,6 +217,7 @@ def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False):
 
     os.system(f"{focusstack_path.as_posix()}"
               f"{' --no-opencl' if not use_GPU else ''}"
+              f" --nocrop"
               f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
               f" {' '.join(inputs)}")
 
