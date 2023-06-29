@@ -8,13 +8,66 @@ import subprocess
 from itertools import repeat
 from skimage.transform import resize
 from scAnt.files_io import lookup_bin
-from scAnt.utilities import compute_sharpness
 from os.path import commonprefix
-
+from scipy.ndimage import convolve
+from skimage import filters
 
 #######################################################################################################################
 #                                                 Stacking Section                                                    #
 #######################################################################################################################
+
+def norm(image):
+    if image.ndim == 3 and image.shape[2] == 3:
+        resh = image.reshape(-1, 3).astype(float)
+    elif image.ndim == 2:
+        resh = image.ravel().astype(float)
+    else:
+        raise AssertionError('Wrong data')
+    min_val = resh.min(axis=0)
+    resh -= min_val
+    max_val = resh.max(axis=0)
+    resh /= max_val
+    return resh.reshape(image.shape)
+
+def compute_contrast(image, use_blur=True):
+    laplace_kernel = np.array([[0, 1, 0],
+                               [1, -4, 1],
+                               [0, 1, 0]])
+
+    mono = image.mean(axis=2)
+    if use_blur:
+        mono = filters.gaussian(mono, sigma=3)
+
+    convolved = convolve(mono, laplace_kernel)
+    return np.abs(convolved)
+
+def compute_saturation(image):
+    return norm(image.std(axis=2))
+
+def compute_exposition(image, sigma=0.2):
+    ideal_exp = 0.5
+    image = image/255
+    exposition = np.exp(- ((image - ideal_exp)**2) / (2 * (sigma**2)))
+    return exposition.prod(axis=2)
+
+def compute_sharpness(image):
+    c = compute_contrast(image, use_blur=True)
+    s = compute_saturation(image)
+    e = compute_exposition(image, sigma=0.3)
+
+    composite = e*c-s
+
+    score = np.sum(composite >= 0.25) / len(composite.ravel())
+    return score * 1000
+
+def compute_weightmap(contrast, saturation, exposition, omega_c=1.0, omega_s=1.0, omega_e=1.0):
+    arrays_prod = np.stack([
+        contrast ** omega_c,
+        saturation ** omega_s,
+        exposition ** omega_e
+    ])
+    W = np.prod(arrays_prod, axis=0)
+    return W
 
 
 def measure_focus(image, display=False):
@@ -66,7 +119,7 @@ def focus_check_single(image_path, threshold, display=False, verbose=0):
     """
     Performs the focus check on a single image and decides if it is blurry or not, based on the passed threshold value
     """
-    if verbose == 2:
+    if verbose >= 2:
         print(f"Thread {str(threading.get_ident())[-5:]} (PID {threading.get_native_id()}) processing {image_path.stem}{image_path.suffix}")
 
     image = cv2.imread(image_path.as_posix())
@@ -108,7 +161,7 @@ def focus_check_multi(paths_list, threshold, display=False, verbose=0):
     Performs the focus check on a list of images, and sorts them into two lists: sharp and blurry
     """
 
-    thread_executor = ThreadPoolExecutor(max_workers=3)        # 10 threads per process
+    thread_executor = ThreadPoolExecutor(max_workers=10)        # 10 threads per process
     thread_results = thread_executor.map(focus_check_single,
                                          paths_list,
                                          repeat(threshold),
@@ -195,8 +248,9 @@ def fuse(images_paths, output_folder, verbose=0):
                    stdout=stdout,
                    stderr=subprocess.STDOUT)
 
+
 import os
-def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False):
+def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False, threads=4):
     inputs = [p.as_posix() for p in images_paths]
 
     stack_name = commonprefix([file.stem for file in images_paths]).replace('_step', '')
@@ -209,17 +263,14 @@ def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False):
     else:
         stdout = subprocess.DEVNULL
 
-    # subprocess.run([focusstack_path.as_posix(),
-    #                 f"{' --no-opencl' if not use_GPU else ''}"
-    #                 f" --output={(output_folder / (stack_name + '.tif')).as_posix()}",
-    #                 *inputs
-    #                 ],
-    #                cwd=output_folder)
-
     os.system(f"{focusstack_path.as_posix()}"
               f"{' --no-opencl' if not use_GPU else ''}"
-              f" --jpgquality=100 --consistency=2 --global-align --full-resolution-align --align-keep-size --nocrop"
-              f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
+              " --jpgquality=100"
+              " --consistency=2"
+              " --full-resolution-align"
+              " --nocrop"
+              f" --threads={threads}"
+              f" --output={(output_folder / (stack_name + '.jpg')).as_posix()}"
               f" {' '.join(inputs)}")
 
 

@@ -42,7 +42,7 @@ def check_files_paths(list_of_paths, ext='tif', verbose=0):
 def find_RAW_folder(folder_path, ext='tif', verbose=0):
     """ Finds the RAW folder containing images to post-process. """
 
-    ext = ext.strip().replace('.', '')
+    ext = ext.lower().strip().replace('.', '')
     
     folder_path = Path(folder_path)
 
@@ -77,7 +77,7 @@ def get_paths(*list_of_paths, force_single_stack=False, ext='tif', verbose=0):
     """ Parses a string, Path object, or iterable thereof, and return the naturally sorted paths to images,
      grouped by stack into a list of lists """
 
-    ext = ext.strip().replace('.', '')
+    ext = ext.lower().strip().replace('.', '')
     
     list_of_paths = to_paths(*list_of_paths)
 

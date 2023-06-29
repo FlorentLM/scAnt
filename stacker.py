@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())
 
-    # imgs = str2list('F:\scans\cataglyphis_velox_1')
+    # imgs = 'C:\\Users\\flolm\\Desktop'
     #
     # args = {
     #     "images": imgs,
@@ -66,8 +66,10 @@ if __name__ == '__main__':
     #     "method": "Default",
     #     "gpu": True,
     #     "experimental": True,
-    #     "extension": 'tif',
+    #     "extension": 'tif'
     # }
+
+    args['extension'] = args['extension'].lower().strip().replace('.', '')
 
     if args['verbose'] > 0:
         print("\n[INFO]:\n",
@@ -75,7 +77,7 @@ if __name__ == '__main__':
               f"""  - Out of focus images will {f'be discarded using a laplacian variance threshold of {args["threshold"]}' if args["focus_check"] else 'NOT be discarded'}\n""",
                 f"  - {'Previews' if args['display'] else 'NO previews'} will be displayed during focus check\n",
                 f"  - Output images {'will be' if args['sharpen'] else 'will NOT be'} additionally sharpened\n",
-                f"  - Images ({args['extension']} files) in target directory {'will be treated as a single stack' if args['single_stack'] else 'will be processed stack by stack'}\n",
+                f"  - Images (.{args['extension']} files) in target directory {'will be treated as a single stack' if args['single_stack'] else 'will be processed stack by stack'}\n",
                 f"  - Stacking using the {'GPU' if args['gpu'] else 'CPU'}"
               )
 
@@ -99,7 +101,7 @@ if __name__ == '__main__':
         print('Checking focus...', end='', flush=True)
         start = time.time()
 
-        with ProcessPoolExecutor(max_workers=3) as executor:
+        with ProcessPoolExecutor(max_workers=1) as executor:
             focus_results = executor.map(focus_check_multi,
                                               inputs,                       # 1 value of the iterable per child process
                                               repeat(args['threshold']),    # same arg repeated in all child processes
@@ -126,23 +128,19 @@ if __name__ == '__main__':
     if args['experimental']:
 
         start = time.time()
-        if args['verbose'] > 0:
-            print('Stacking ...')
-        else:
-            print('Stacking ... ', end='', flush=True)  # If not verbose, still print this but without returning
+        if args['verbose'] == 0:
+            print('Stacking ...', end='', flush=True)
 
         nb_stacks = len(inputs)
-        stacks_done = 0
+        stacks = 0
 
-        with ProcessPoolExecutor(max_workers=1) as executor:   # TODO - Maybe use more processes when not using the GPU?
-            for r in as_completed(
-                    [executor.submit(focus_stack_2, s, output_dir, args['verbose'], args['gpu']) for s in inputs]
-            ):
-                stacks_done += 1
-                if args['verbose'] >= 1:
-                    print(f"Processed stack [{stacks_done}/{nb_stacks}]")
-
-        print('Done.')
+        for imgs in inputs:
+            stacks += 1
+            if args['verbose'] == 0:
+                print(".", end='', flush=True)
+            else:
+                print(f"Stacking [{stacks} / {nb_stacks}]")
+            focus_stack_2(imgs, output_dir, verbose=args['verbose'], use_GPU=args['gpu'], threads=4)
 
         end = time.time()
         if args['verbose'] > 0:
