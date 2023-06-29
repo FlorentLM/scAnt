@@ -14,6 +14,19 @@ import yaml
 
 ##
 
+def norm(image):
+    if image.ndim == 3 and image.shape[2] == 3:
+        resh = input_img.reshape(-1, 3).astype(float)
+    elif image.ndim == 2:
+        resh = image.ravel().astype(float)
+    else:
+        raise AssertionError('Wrong data')
+    min_val = resh.min(axis=0)
+    resh -= min_val
+    max_val = resh.max(axis=0)
+    resh /= max_val
+    return resh.reshape(image.shape)
+
 def compute_contrast(image, use_blur=True):
     laplace_kernel = np.array([[0, 1, 0],
                                [1, -4, 1],
@@ -28,7 +41,7 @@ def compute_contrast(image, use_blur=True):
 
 
 def compute_saturation(image):
-    return image.std(axis=2)
+    return norm(image.std(axis=2))
 
 
 def compute_exposition(image, sigma=0.2):
@@ -37,6 +50,15 @@ def compute_exposition(image, sigma=0.2):
     exposition = np.exp(- ((image - ideal_exp)**2) / (2 * (sigma**2)))
     return exposition.prod(axis=2)
 
+def compute_sharpness(image):
+    c = compute_contrast(image, use_blur=True)
+    s = compute_saturation(image)
+    e = compute_exposition(image, sigma=0.3)
+
+    composite = e*c-s
+
+    score = np.sum(composite >= 0.25) / len(composite.ravel())
+    return score * 1000
 
 def compute_weightmap(contrast, saturation, exposition, omega_c=1.0, omega_s=1.0, omega_e=1.0):
     arrays_prod = np.stack([
@@ -107,8 +129,21 @@ def fix_metadata(path, cfg_path=None, ext='tif'):
 ##
 
 path = Path('F:\scans\messor_2')
-in_path = Path('C:\\Users\\flolm\\Desktop\\images')
+in_path = Path("D:\scans\cataglyphis_velox_2\masks_2")
 
 # fix_metadata(path)
 # invert_masks(in_path)
 
+##
+
+
+
+path = Path('C:\\Users\\flolm\\Desktop\\out\\_x_00000_y_00000_step_35500_.jpg')
+path = Path('C:\\Users\\flolm\\Desktop\\out\\_x_00000_y_00400_step_34500_.jpg')
+path = Path('C:\\Users\\flolm\\Desktop\\out\\_x_00000_y_00400_step_35000_.jpg')
+path = Path('C:\\Users\\flolm\\Desktop\\out\\_x_00000_y_00400_step_35500_.jpg')
+
+input_img = cv2.imread(path.as_posix())
+
+S = compute_sharpness(input_img)
+print(S)
