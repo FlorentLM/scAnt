@@ -8,6 +8,7 @@ import subprocess
 from itertools import repeat
 from skimage.transform import resize
 from scAnt.files_io import lookup_bin
+from scAnt.utilities import compute_sharpness
 from os.path import commonprefix
 
 
@@ -76,9 +77,10 @@ def focus_check_single(image_path, threshold, display=False, verbose=0):
     resized = resize_img(image, scale=scale, use_opencv=True)
 
     # gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)      # isn't the human-perception-centered algorithm too biased?
-    gray = neutral_grayscale(resized)
+    # gray = neutral_grayscale(resized)
 
-    focus_score = measure_focus(gray, display=display)
+    # focus_score = measure_focus(gray, display=display)
+    focus_score = compute_sharpness(image); threshold = 1.0
 
     # If the focus measure is less than the supplied threshold, then the image should be considered "blurry"
     if focus_score < threshold:
@@ -101,13 +103,12 @@ def focus_check_single(image_path, threshold, display=False, verbose=0):
 
     return image_path, is_focused, focus_score
 
-
 def focus_check_multi(paths_list, threshold, display=False, verbose=0):
     """
     Performs the focus check on a list of images, and sorts them into two lists: sharp and blurry
     """
 
-    thread_executor = ThreadPoolExecutor(max_workers=10)        # 10 threads per process
+    thread_executor = ThreadPoolExecutor(max_workers=3)        # 10 threads per process
     thread_results = thread_executor.map(focus_check_single,
                                          paths_list,
                                          repeat(threshold),
@@ -217,6 +218,7 @@ def focus_stack_2(images_paths, output_folder, verbose=0, use_GPU=False):
 
     os.system(f"{focusstack_path.as_posix()}"
               f"{' --no-opencl' if not use_GPU else ''}"
+              f" --nocrop"
               f" --output={(output_folder / (stack_name + '.tif')).as_posix()}"
               f" {' '.join(inputs)}")
 

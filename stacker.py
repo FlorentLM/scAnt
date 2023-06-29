@@ -46,6 +46,10 @@ if __name__ == '__main__':
     parser.add_argument("-x", "--experimental",
                         action='store_true',
                         help="Use experimental stacking method")
+    parser.add_argument("-e", "--extension",
+                        type=str,
+                        default="tif",
+                        help="Input files extension")
 
     args = vars(parser.parse_args())
 
@@ -62,6 +66,7 @@ if __name__ == '__main__':
     #     "method": "Default",
     #     "gpu": True,
     #     "experimental": True,
+    #     "extension": 'tif',
     # }
 
     if args['verbose'] > 0:
@@ -70,13 +75,13 @@ if __name__ == '__main__':
               f"""  - Out of focus images will {f'be discarded using a laplacian variance threshold of {args["threshold"]}' if args["focus_check"] else 'NOT be discarded'}\n""",
                 f"  - {'Previews' if args['display'] else 'NO previews'} will be displayed during focus check\n",
                 f"  - Output images {'will be' if args['sharpen'] else 'will NOT be'} additionally sharpened\n",
-                f"  - Images in target directory {'will be treated as a single stack' if args['single_stack'] else 'will be processed stack by stack'}\n",
+                f"  - Images ({args['extension']} files) in target directory {'will be treated as a single stack' if args['single_stack'] else 'will be processed stack by stack'}\n",
                 f"  - Stacking using the {'GPU' if args['gpu'] else 'CPU'}"
               )
 
     max_processes = max(1, cpu_count()//2)
 
-    inputs = files_io.get_paths(args['images'], force_single_stack=args['single_stack'], verbose=args['verbose'])
+    inputs = files_io.get_paths(args['images'], force_single_stack=args['single_stack'], ext=args['extension'], verbose=args['verbose'])
     output_dir = files_io.mk_outputdir(inputs, verbose=args['verbose'])
 
 ##
@@ -94,7 +99,7 @@ if __name__ == '__main__':
         print('Checking focus...', end='', flush=True)
         start = time.time()
 
-        with ProcessPoolExecutor(max_workers=max_processes) as executor:
+        with ProcessPoolExecutor(max_workers=3) as executor:
             focus_results = executor.map(focus_check_multi,
                                               inputs,                       # 1 value of the iterable per child process
                                               repeat(args['threshold']),    # same arg repeated in all child processes

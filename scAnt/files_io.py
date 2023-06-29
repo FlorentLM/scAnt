@@ -20,16 +20,16 @@ def to_paths(*args):
 
     return list_of_paths
 
-def check_files_paths(list_of_paths, verbose=0):
+def check_files_paths(list_of_paths, ext='tif', verbose=0):
     """ Checks if files in a list of paths exist or not. Skips paths that are directories.
     Returns a list of (de-duplicated) existing files paths. """
 
-    # extensions = ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp']
-    extensions = ['.tif', '.tiff']
+    ext = ext.strip().replace('.', '')
+    
     checked = set()
     for p in list_of_paths:
         imgpath = Path(p)   # It doesn't hurt to be careful
-        if imgpath.exists() and imgpath.is_file() and imgpath.suffix in extensions:
+        if imgpath.exists() and imgpath.is_file() and imgpath.suffix == f'.{ext}':
             checked.add(imgpath)
         elif imgpath.exists() and imgpath.is_dir():
             if verbose > 0:
@@ -39,9 +39,11 @@ def check_files_paths(list_of_paths, verbose=0):
                 print(f"File {imgpath} not found; skipping")
     return natsorted(checked, alg=ns.IGNORECASE)
 
-def find_RAW_folder(folder_path, verbose=0):
+def find_RAW_folder(folder_path, ext='tif', verbose=0):
     """ Finds the RAW folder containing images to post-process. """
 
+    ext = ext.strip().replace('.', '')
+    
     folder_path = Path(folder_path)
 
     # The wildcard is redundant in this case, so strip it
@@ -66,15 +68,17 @@ def find_RAW_folder(folder_path, verbose=0):
             if verbose > 0:
                 print(f"Found \"{raw_images_folder.stem}\" folder in {folder_path}")
 
-    if not any(raw_images_folder.glob('*.tif')):
-        raise FileNotFoundError(f"No .tif files found in {raw_images_folder}")
+    if not any(raw_images_folder.glob(f'*.{ext}')):
+        raise FileNotFoundError(f"No .{ext} files found in {raw_images_folder}")
 
     return raw_images_folder
 
-def get_paths(*list_of_paths, force_single_stack=False, verbose=0):
+def get_paths(*list_of_paths, force_single_stack=False, ext='tif', verbose=0):
     """ Parses a string, Path object, or iterable thereof, and return the naturally sorted paths to images,
      grouped by stack into a list of lists """
 
+    ext = ext.strip().replace('.', '')
+    
     list_of_paths = to_paths(*list_of_paths)
 
     all_stacks = []
@@ -85,19 +89,19 @@ def get_paths(*list_of_paths, force_single_stack=False, verbose=0):
         # If only 1 path, it is probably the default RAW folder. Otherwise, find_RAW_folder() will throw an
         # informative exception.
     elif len(list_of_paths) == 1:
-        raw_folder = find_RAW_folder(list_of_paths[0], verbose=verbose)
+        raw_folder = find_RAW_folder(list_of_paths[0], ext=ext, verbose=verbose)
 
         if force_single_stack:
-            all_stacks = list(list_of_paths[0].glob("*.tif"))
+            all_stacks = list(list_of_paths[0].glob(f'*.{ext}'))
         else:
             # Fetch and sort stack names
-            uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_folder.glob("*.tif")])
+            uniq_names = set([img_path.stem.split('step')[0] for img_path in raw_folder.glob(f'*.{ext}')])
             list_stacks_names = list(uniq_names)
 
             sorted_stacks = natsorted(list_stacks_names, alg=ns.IGNORECASE)  # Not crucially needed, but why not
 
             for stack in sorted_stacks:
-                images_current_stack = list(raw_folder.glob(f"{stack}*.tif"))
+                images_current_stack = list(raw_folder.glob(f"{stack}*.{ext}"))
                 all_stacks.append(natsorted(images_current_stack, alg=ns.IGNORECASE))
 
                 # If more than 1 path, there are 3 cases:
@@ -105,7 +109,7 @@ def get_paths(*list_of_paths, force_single_stack=False, verbose=0):
 
         # - Multiple files, treat them as 1 stack by default
         if all([f.is_file() if f.exists() else False for f in list_of_paths]):
-            all_stacks = [check_files_paths(list_of_paths, verbose=verbose)]
+            all_stacks = [check_files_paths(list_of_paths, ext=ext, verbose=verbose)]
 
         # - Multiple folders, treat them as separate stacks (and handle wildcards!) by default
         elif all([f.is_dir() if (f.exists() or '*' in f.name) else False for f in list_of_paths]):
@@ -113,7 +117,7 @@ def get_paths(*list_of_paths, force_single_stack=False, verbose=0):
                 if '*' in dir.name:
                     all_stacks.append(list(dir.parent.expanduser().glob(dir.name)))
                 else:
-                    all_stacks.append(check_files_paths(dir.glob('*'), verbose=verbose))
+                    all_stacks.append(check_files_paths(dir.glob('*'), ext=ext, verbose=verbose))
 
             if force_single_stack:
                 all_stacks = list(chain.from_iterable(all_stacks))
